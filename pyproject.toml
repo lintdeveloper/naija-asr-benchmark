@@ -1,0 +1,82 @@
+[project]
+name = "naija-asr-bench"
+version = "0.1.0"
+description = "Measuring Nigerian-language ASR under narrowband, noisy and code-switched conditions"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Musa Musa", email = "musabrillz@gmail.com" }]
+requires-python = ">=3.11"
+keywords = ["asr", "speech-recognition", "hausa", "yoruba", "igbo", "low-resource", "benchmark"]
+
+dependencies = [
+  # datasets<4 on purpose: 4.x removed the script-based loader path that some
+  # FLEURS revisions still rely on, and surfaces as a trust_remote_code error.
+  "datasets>=2.19,<4",
+  "transformers>=4.40,<5",
+  "torch>=2.2",
+  "soundfile>=0.12",   # libsndfile bindings; datasets decodes audio through this
+  "librosa>=0.10",     # resampling — needed from Milestone 2 for narrowband
+  "jiwer>=3.0",        # WER/CER
+  "huggingface_hub>=0.23",
+  "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6", "mypy>=1.11"]
+
+[project.scripts]
+naija-asr-bench = "naija_asr_bench.cli:main"
+
+[project.urls]
+Repository = "https://github.com/lintdeveloper/naija-asr-bench"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/naija_asr_bench"]
+
+# ── ruff: lint + format, replacing black/flake8/isort ────────────────────────
+[tool.ruff]
+line-length = 96
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+  "E", "W",    # pycodestyle
+  "F",         # pyflakes
+  "I",         # isort
+  "UP",        # pyupgrade
+  "B",         # bugbear
+  "SIM",       # simplify
+  "RUF",       # ruff-specific
+  "ANN",       # annotations
+  "PTH",       # prefer pathlib
+  "TRY",       # exception antipatterns
+]
+ignore = [
+  "ANN401",  # Any is the honest type for a third-party payload we do not own
+  "TRY003",  # messages are the point here; they carry the operator's next step
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ANN201"]   # test functions returning None need no annotation
+
+# ── mypy ─────────────────────────────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src", "tests"]
+# torch / transformers / datasets ship incomplete or absent stubs.
+[[tool.mypy.overrides]]
+module = ["datasets.*", "transformers.*", "torch.*", "librosa.*", "soundfile.*", "jiwer.*"]
+ignore_missing_imports = true
+
+# ── pytest ───────────────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-q --strict-markers --strict-config"
+markers = ["network: needs the HuggingFace CDN (deselect with -m 'not network')"]

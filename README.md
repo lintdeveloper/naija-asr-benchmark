@@ -82,55 +82,62 @@ choose Milestone 1's model floor accordingly.
 
 ---
 
-## Milestone 0 — how to re-run
+## Running it
 
-One evening. The only goal is to prove the toolchain works before any real work
-starts. Most projects in an unfamiliar ecosystem die here, for boring reasons:
-wrong config name, gated dataset, missing audio codec.
+Requires [uv](https://docs.astral.sh/uv/).
 
 ```bash
-cd ~/Documents/naija-asr-bench
-./setup.sh
-./.venv/bin/python milestone0.py
+uv sync                       # runtime deps
+uv sync --extra dev           # + pytest, ruff, mypy
+
+uv run naija-asr-bench                  # Hausa
+uv run naija-asr-bench --lang yo        # Yorùbá, Igbo, English
+uv run naija-asr-bench --help
 ```
 
-Then confirm the other three languages resolve:
+On a slow connection, raise the fetch deadline:
 
 ```bash
-./.venv/bin/python milestone0.py --lang yo
-./.venv/bin/python milestone0.py --lang ig
-./.venv/bin/python milestone0.py --lang en
+NAIJA_ASR_FETCH_TIMEOUT_S=1800 uv run naija-asr-bench --lang ha
 ```
 
-### What the script does
+### What it does
 
-1. Reports Python / torch / transformers / datasets versions and picks a device
-2. **Resolves the FLEURS config name** — the plan lists `ha_ng` as an unverified
-   guess. If wrong, the script lists every `ha_*` config and tells you the fix.
-3. Streams 5 test samples (no multi-GB download)
+1. Reports the toolchain and picks a device
+2. **Resolves the FLEURS config against the live list** rather than trusting a recorded name
+3. Streams 5 test samples — no multi-gigabyte download
 4. Prints the reference transcripts
 5. Runs one clip through `whisper-tiny` and prints hypothesis beside reference
 
 ### Definition of done
 
-**A hypothesis printed next to a reference transcript.** That is all.
+**A hypothesis printed next to a reference transcript.** That is all. `whisper-tiny` scores
+terribly on Hausa — 80–100% WER, sometimes the wrong language entirely — and **that is the correct
+outcome.** You are testing plumbing, not quality. Do not tune anything; that belongs in Milestone 1.
 
-`whisper-tiny` will score terribly on Hausa — likely 80–100% WER, possibly
-outputting the wrong language entirely. **That is the correct outcome.** You are
-testing plumbing, not quality. Do not tune anything. Do not reach for a larger
-model. Both belong in Milestone 1 and later.
+### Checks
 
-### If it fails
+```bash
+uv run pytest       # 17 tests, no network needed
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy         # strict
+```
 
-| Symptom | Cause | Fix |
-|---|---|---|
-| `python3.11 not found` | System python is 3.9 | `brew install python@3.11` |
-| Config not found | The `ha_ng` guess was wrong | Script prints the real candidates — update `EXPECTED_CONFIGS` in `milestone0.py` |
-| Audio backend error | libsndfile missing | `brew install libsndfile`, then re-run `./setup.sh` |
-| `trust_remote_code` error | `datasets` too new | The `<4` pin should prevent it; check the install actually honoured it |
-| Model download stalls | Network / disk | ~150MB for whisper-tiny; check free space |
+The tests are deliberately network-free. FLEURS streaming leaves no local parquet cache, so there
+is nothing to replay offline, and a flaky CDN produces false failures — synthetic fixtures are the
+only honest option for the fetch path.
 
----
+Two bugs were found by these checks rather than by running the thing:
+
+- **A deadlock in the bounded fetch.** The first version joined the child before reading the
+  queue, which hangs once the payload exceeds the pipe buffer — the child blocks in `put()` waiting
+  for a reader while the parent blocks in `join()` waiting for the child. Three 64KB waveforms
+  reproduced it; real FLEURS rows are ~1MB each, so **every language would have reported a bogus
+  timeout.**
+- **A union return from `transformers.pipeline`.** It yields a dict for a single input but a list
+  of dicts in some versions. Assuming the dict form type-checks against `Any` and raises
+  `AttributeError` at runtime on the other path. `mypy --strict` found it; no test would have.
 
 ## Also part of Milestone 0: the PazaBench check
 
@@ -160,31 +167,24 @@ Record the answer in the plan's §8 risk table.
 
 ---
 
-## Checking the harness without the network
-
-```bash
-./.venv/bin/python test_plumbing.py
-```
-
-Twelve checks on the parent/child plumbing in `load_samples`, using synthetic samples. FLEURS
-streaming leaves no local parquet cache, so there is nothing to replay offline, and a flaky CDN
-gives false failures — these have to be synthetic to mean anything.
-
-It earned its place immediately: it caught a deadlock in the first version of the subprocess
-change. Joining the child before reading the queue hangs as soon as the payload exceeds the pipe
-buffer — the child blocks in `put()` waiting for a reader while the parent blocks in `join()`
-waiting for the child. Three 64KB waveforms were enough. Real FLEURS samples are ~1MB each, so
-**every language would have reported a bogus timeout.**
-
 ## Layout
 
 ```
-LICENSE            MIT
-test_plumbing.py   network-free checks for the load_samples child process
-requirements.txt   pinned dependency set (see the comment about datasets<4)
-setup.sh           creates .venv with python3.11, installs deps
-milestone0.py      the smoke test
+pyproject.toml              deps, ruff, mypy and pytest config — single source
+uv.lock                     locked environment
+src/naija_asr_bench/
+  cli.py                    argparse, orchestration, exit codes
+  fleurs.py                 config resolution + the bounded fetch + dataclasses
+  asr.py                    transcription
+  environment.py            toolchain reporting and device choice
+  console.py                presentation only, so logic is testable
+  errors.py                 SmokeError — nothing below the CLI calls sys.exit
+tests/                      pytest; network-free
 ```
+
+`src` layout so tests run against the installed package rather than the working directory. Heavy
+imports (`torch`, `transformers`, `datasets`) stay inside functions — `--help` should not cost
+seconds, and a test asserts that.
 
 ## Licence
 
