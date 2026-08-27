@@ -22,7 +22,17 @@ Ran 2026-08-27 on an M-series Mac, CPU, `datasets` 3.6 / `transformers` 4.57 / `
 | Hausa | `ha_ng` | confirmed — the plan listed this as an unverified guess |
 | Yorùbá | `yo_ng` | confirmed |
 | English | `en_us` | confirmed |
-| Igbo | — | not yet resolved |
+| Igbo | `ig_ng` | config exists; the **split would not stream** — see below |
+
+All four config names are therefore confirmed against the live config list (103 configs;
+`ig*` matches exactly `ig_ng`). The plan's guesses were all correct.
+
+**Igbo is blocked on data access, not on naming.** `milestone0.py --lang ig` ran for over 25
+minutes with no output and had to be killed, while `ha`, `yo` and `en` each completed in minutes.
+Since `get_dataset_config_names` returns `ig_ng` immediately, the failure is in fetching the
+split, not resolving it. Worth an entry in the plan's §8 risk table: a language can be listed in
+FLEURS and still be effectively unavailable, which affects the four-language scope in §2.1. Next
+step is a direct shard fetch with a timeout to distinguish a slow shard from a broken one.
 
 **First zero-shot baselines, `openai/whisper-tiny`, one utterance per language:**
 
