@@ -24,6 +24,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import textwrap
 
@@ -119,32 +120,111 @@ def resolve_config(lang: str) -> str:
     )
 
 
-def load_samples(config: str, n: int) -> list[dict]:
-    """Stream the first n test samples. Streaming avoids a multi-GB download."""
-    rule(f"3. Loading {n} samples from {DATASET}/{config} (streaming)")
-    from datasets import load_dataset
+# How long to give the dataset fetch before giving up, in seconds.
+#
+# Generous on purpose. The point of the deadline is that one can be enforced AT
+# ALL (see load_samples), not that it is tight: ig_ng blocked past 25 minutes,
+# while ha/yo/en each complete in a few. A first run also pays for the child
+# re-importing torch and datasets under `spawn`, and for a cold HF cache. Set at
+# 180s initially, which was wrong — it failed a working Hausa fetch.
+STREAM_TIMEOUT_S = int(os.environ.get("RESILIX_STREAM_TIMEOUT_S", "900"))
 
+
+def _fetch_samples_child(config: str, n: int, q) -> None:  # pragma: no cover - child process
+    """Runs in a separate process. See load_samples for why."""
     try:
+        from datasets import load_dataset
+
         stream = load_dataset(DATASET, config, split="test", streaming=True)
-        samples = []
-        for i, s in enumerate(stream):
+        out = []
+        for i, sample in enumerate(stream):
             if i >= n:
                 break
-            samples.append(s)
-    except Exception as e:
+            audio = sample.get("audio") or {}
+            # Send only what the callers use, keeping `audio` nested so they are
+            # unchanged. The raw sample also carries loader internals, not all of
+            # which pickle. The waveform stays a numpy array — it pickles fine and
+            # the ASR pipeline wants an array, not a list.
+            out.append(
+                {
+                    "audio": {
+                        "array": audio.get("array"),
+                        "sampling_rate": audio.get("sampling_rate"),
+                    },
+                    "transcription": sample.get("transcription", ""),
+                    "raw_transcription": sample.get("raw_transcription", ""),
+                    "_fields": sorted(sample.keys()),
+                }
+            )
+        q.put(("ok", out))
+    except Exception as exc:  # noqa: BLE001 - reported verbatim to the parent
+        q.put(("error", f"{type(exc).__name__}: {exc}"))
+
+
+def load_samples(config: str, n: int) -> list[dict]:
+    """Stream the first n test samples, in a child process with a hard deadline.
+
+    Streaming avoids a multi-GB download. The child process is about something
+    else: FLEURS `ig_ng` is a valid config whose split does not fetch, and it
+    blocks in a way that CANNOT be interrupted from inside Python. A probe with
+    `signal.alarm` set to 90s ran past 330s and had to be killed with SIGTERM
+    from outside, because the block is below the level at which Python delivers
+    signals.
+
+    So the deadline has to be enforced by a parent watching a child, not by the
+    work watching itself. Anything else hangs the whole benchmark on one bad
+    shard — which matters much more in Milestone 1, where the runner loops over
+    four languages and several models.
+    """
+    rule(f"3. Loading {n} samples from {DATASET}/{config} (streaming)")
+
+    import multiprocessing as mp
+    import queue as queue_mod
+
+    ctx = mp.get_context("spawn")
+    q = ctx.Queue()
+    child = ctx.Process(target=_fetch_samples_child, args=(config, n, q), daemon=True)
+    child.start()
+
+    # Read BEFORE joining. Joining first deadlocks: five FLEURS samples are several
+    # megabytes, a pipe buffer is tens of kilobytes, so the child blocks inside
+    # put() waiting for someone to drain it while the parent blocks in join()
+    # waiting for the child to exit. Neither moves, and it surfaces as a bogus
+    # timeout on every language. `q.get` drains as the child writes.
+    try:
+        status, payload = q.get(timeout=STREAM_TIMEOUT_S)
+    except queue_mod.Empty:
+        child.kill()
+        child.join(5)
         fail(
-            f"could not load the dataset: {e}",
+            f"the '{config}' split did not produce a sample within {STREAM_TIMEOUT_S}s.",
+            "The config name resolved, so this is data access rather than a typo. "
+            "On a slow connection or a cold cache, raise it: "
+            "RESILIX_STREAM_TIMEOUT_S=1800. If it never returns, the split may be "
+            "genuinely unavailable — though a flaky CDN looks identical, so confirm "
+            "another language fetches before concluding that.",
+        )
+
+    child.join(30)
+    if child.is_alive():
+        child.kill()
+        child.join(5)
+
+    if status == "error":
+        fail(
+            f"could not load the dataset: {payload}",
             "If this mentions a missing audio backend, check that soundfile "
             "installed cleanly. If it mentions trust_remote_code, your datasets "
             "version is trying to run a loading script — the pin in "
             "requirements.txt should prevent that.",
         )
 
+    samples = payload
     if not samples:
         fail("dataset loaded but the test split was empty.")
 
     print(f"  ✓ pulled {len(samples)} samples")
-    print(f"  fields: {', '.join(sorted(samples[0].keys()))}")
+    print(f"  fields: {', '.join(samples[0]['_fields'])}")
     return samples
 
 
