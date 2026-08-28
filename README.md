@@ -7,7 +7,9 @@ the clean read speech public leaderboards score.
 Plan: `~/Documents/nigerian-asr-benchmark-plan.pdf`
 
 **Status: Milestone 0 complete (2026-08-27).** Toolchain verified, FLEURS configs resolved, first
-zero-shot baselines recorded below.
+zero-shot baselines recorded below. Re-verified end to end on 2026-08-28 after the package
+restructure: the same Hausa clip produces a byte-identical hypothesis, so the restructure is
+behaviour-preserving.
 
 ---
 
