@@ -26,6 +26,9 @@ Ran 2026-08-27 on an M-series Mac, CPU, `datasets` 3.6 / `transformers` 4.57 / `
 | English | `en_us` | confirmed |
 | Igbo | `ig_ng` | confirmed; the split did **not fetch here** — cause not isolated, see below |
 
+PazaBench check: **done**, see below — it covers Hausa, Yorùbá and Igbo on FLEURS, but has no
+acoustic-degradation axis, so the contribution here is unaffected.
+
 All four config names are therefore confirmed against the live config list (103 configs;
 `ig*` matches exactly `ig_ng`). The plan's guesses were all correct.
 
@@ -141,33 +144,49 @@ Two bugs were found by these checks rather than by running the thing:
   of dicts in some versions. Assuming the dict form type-checks against `Any` and raises
   `AttributeError` at runtime on the other path. `mypy --strict` found it; no test would have.
 
-## Also part of Milestone 0: the PazaBench check
+## The PazaBench check — done 2026-09-01
 
-Manual, and worth doing before Milestone 3 — it could remove a third of that
-milestone's work.
+**PazaBench covers Hausa, Yorùbá and Igbo.** Answered from the leaderboard's own source rather
+than its announcement posts, which name only the six Kenyan languages the Paza *models* target.
+`src/data/language_to_countries_map.json` in
+[microsoft/paza-bench](https://huggingface.co/spaces/microsoft/paza-bench) lists 59 languages, of
+which seven map to Nigeria: **Hausa, Yorùbá, Igbo**, Adamawa Fulfulde, Borgu Fulfulde, Fula and
+Kanuri. Nigerian Pidgin is **not** among them.
 
-Microsoft Research's **PazaBench** is a public African ASR leaderboard covering
-39 African languages and 52 models, hosted on HuggingFace. Its initial depth is
-on six Kenyan languages. Find out:
+| Question | Answer |
+|---|---|
+| Includes Hausa / Yorùbá / Igbo / Pidgin? | **Yes / Yes / Yes / No** |
+| Which models? | 51–52 models incl. Whisper, MMS-1B and the new Paza checkpoints |
+| Which eval sets? | 11 dataset groups, incl. **Google FLEURS**, Mozilla Common Voice 23.0, ALFFA and **Naija Voices** |
+| Per-utterance outputs? | **No** — aggregate WER / CER / RTFx only; results load from a private `RESULTS_REPO` |
+| Degradation conditions? | **None.** Grouped by *speech style* — conversational, read-aloud, unscripted, broadcast, domain — not by acoustic condition. No noise, SNR, narrowband or bandwidth axis anywhere in the metadata |
 
-- [ ] Does it include Hausa, Yorùbá, Igbo or Nigerian Pidgin?
-- [ ] Which models are scored for those languages?
-- [ ] Which eval set does it use — FLEURS, Common Voice, or its own?
-- [ ] Are the per-utterance outputs published, or only aggregate scores?
-- [ ] Any degradation / noise conditions, or clean audio only?
+### What this changes
 
-**If it covers Nigerian languages on FLEURS:** adopt its clean-condition numbers
-as the baseline instead of re-running them, cite it, and spend the saved compute
-on the degradation and LLM-correction arms — which is where this project's
-contribution actually lives.
+**Milestone 3 shrinks.** They cover the clean-condition leaderboarding for all three languages on
+FLEURS, with more models and more compute than this project has. Do not re-run it. Adopt their
+clean numbers as the baseline, cite them, and spend the saved compute on the arms they do not
+have.
 
-**If it later adds degradation conditions:** the contribution narrows to the
-tone-orthography experiment and entity/numeral accuracy. Those two need to stay
-central regardless.
+**The contribution is unaffected, and better defined for it.** The plan already said not to
+position this as "the Nigerian ASR leaderboard" because Microsoft Research had built one. That is
+now confirmed rather than assumed, and the gap is sharper than expected: **PazaBench has no
+acoustic-degradation axis at all.** It varies speech *style* and holds the channel constant. Every
+one of the four open questions in §1.5 survives:
 
-Record the answer in the plan's §8 risk table.
+- degradation curves for Nigerian languages — **still nobody's**
+- tone-orthography as a variable — **still nobody's**
+- whether LLM correction helps or harms — **still nobody's**
+- entity-level scoring — **still nobody's**
 
----
+**Two things to lift from them.** Per-utterance outputs are not published, so any comparison
+against their numbers is aggregate-to-aggregate — worth stating in the write-up. And **Naija
+Voices** is a dataset the plan's §1.2 data landscape does not list; it should be assessed for the
+degradation arm, since a Nigerian-collected corpus may be closer to deployment audio than FLEURS
+read speech.
+
+**Nigerian Pidgin remains entirely uncovered by anyone**, which makes §2.3's "include it if data
+permits" more valuable than when it was written.
 
 ## Layout
 
