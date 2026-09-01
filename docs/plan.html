@@ -1,0 +1,678 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Nigerian Language ASR Benchmark — Research Plan</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+
+  :root {
+    --ink: #1a1a1a;
+    --muted: #5a5f66;
+    --rule: #d8dce1;
+    --accent: #0b5d51;
+    --accent-soft: #eef5f3;
+    --warn-bg: #fdf6e7;
+    --warn-br: #e0b96b;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 10.4pt;
+    line-height: 1.55;
+    color: var(--ink);
+    margin: 0;
+  }
+
+  h1, h2, h3, h4, .meta, table, .callout, .tag, code {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  h1 {
+    font-size: 22pt;
+    line-height: 1.2;
+    margin: 0 0 4pt;
+    letter-spacing: -0.4pt;
+  }
+
+  .subtitle {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 11.5pt;
+    color: var(--muted);
+    margin: 0 0 14pt;
+    font-weight: 400;
+  }
+
+  .meta {
+    font-size: 8.8pt;
+    color: var(--muted);
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    padding: 7pt 0;
+    margin-bottom: 20pt;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4pt 22pt;
+  }
+  .meta b { color: var(--ink); font-weight: 600; }
+
+  h2 {
+    font-size: 13.5pt;
+    margin: 22pt 0 8pt;
+    padding-bottom: 4pt;
+    border-bottom: 2px solid var(--accent);
+    color: var(--accent);
+    page-break-after: avoid;
+  }
+
+  h3 {
+    font-size: 11pt;
+    margin: 15pt 0 5pt;
+    color: var(--ink);
+    page-break-after: avoid;
+  }
+
+  p { margin: 0 0 8pt; orphans: 3; widows: 3; }
+  ul, ol { margin: 0 0 9pt; padding-left: 17pt; orphans: 3; widows: 3; }
+  li { margin-bottom: 3.5pt; page-break-inside: avoid; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8.9pt;
+    margin: 9pt 0 13pt;
+  }
+  /* Long tables may split across pages, but never mid-row, and the
+     header repeats on each continuation page. */
+  thead { display: table-header-group; }
+  tr { page-break-inside: avoid; }
+  th {
+    background: var(--accent-soft);
+    text-align: left;
+    padding: 5pt 7pt;
+    border-bottom: 1.5px solid var(--accent);
+    font-weight: 600;
+    font-size: 8.6pt;
+  }
+  td {
+    padding: 5pt 7pt;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: 1px solid var(--rule); }
+  td.num, th.num { text-align: right; white-space: nowrap; }
+  .hl { background: #fff9e6; font-weight: 600; }
+
+  .callout {
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    padding: 8pt 11pt;
+    margin: 11pt 0;
+    font-size: 9.4pt;
+    page-break-inside: avoid;
+  }
+  .callout.warn {
+    background: var(--warn-bg);
+    border-left-color: var(--warn-br);
+  }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout .lbl {
+    display: block;
+    font-size: 7.8pt;
+    letter-spacing: 0.6pt;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 3pt;
+    font-weight: 700;
+  }
+
+  code {
+    background: #f2f4f6;
+    padding: 1pt 3.5pt;
+    border-radius: 2px;
+    font-size: 8.6pt;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  pre {
+    background: #f7f8fa;
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--muted);
+    padding: 8pt 10pt;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 8.2pt;
+    line-height: 1.45;
+    overflow-x: auto;
+    margin: 8pt 0 12pt;
+    page-break-inside: avoid;
+  }
+
+  .tag {
+    display: inline-block;
+    font-size: 7.6pt;
+    font-weight: 700;
+    letter-spacing: 0.4pt;
+    padding: 1.5pt 5pt;
+    border-radius: 3px;
+    background: var(--accent);
+    color: #fff;
+    vertical-align: 1pt;
+  }
+  .tag.grey { background: var(--muted); }
+
+  .page-break { page-break-before: always; }
+
+  footer {
+    margin-top: 26pt;
+    padding-top: 8pt;
+    border-top: 1px solid var(--rule);
+    font-size: 8pt;
+    color: var(--muted);
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .src { font-size: 8pt; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<h1>Nigerian Language ASR Benchmark</h1>
+<p class="subtitle">A research and delivery plan for measuring speech recognition quality in Hausa, Yorùbá, Igbo and Nigerian Pidgin</p>
+
+<div class="meta">
+  <span><b>Author:</b> Musa Musa</span>
+  <span><b>Contact:</b> musabrillz@gmail.com</span>
+  <span><b>Date:</b> 7 August 2026</span>
+  <span><b>Version:</b> 1.4</span>
+  <span><b>Status:</b> Plan — not yet started</span>
+</div>
+
+<h2>Executive summary</h2>
+
+<p>Public ASR leaderboards score models on <strong>clean, read speech</strong>. Real Nigerian deployments are narrowband telephone audio, ambient noise, and constant code-switching — conditions no existing benchmark measures. This work measures Nigerian-language ASR under those conditions instead.</p>
+
+<p>It is deliberately <strong>not</strong> a machine-learning project: no model training, no fine-tuning, no novel architecture. It is an evaluation harness that calls existing public models and computes standard error metrics — ordinary backend engineering applied to a question the field has left open.</p>
+
+<p><strong>Deliverables:</strong> an open-source harness (MIT), degradation curves across four models, four languages and seven acoustic conditions with an English control, entity- and numeral-level error rates for Nigerian languages, the first measurement of whether an LLM correction stage helps or harms them, and a write-up targeting AfricaNLP or LREC. <strong>Cost:</strong> USD 60–130 in GPU and API time. <strong>Effort:</strong> eight weekends plus one evening.</p>
+
+<div class="callout">
+  <span class="lbl">The two contributions</span>
+  <p><b>1. The tone-orthography experiment.</b> Yorùbá, Igbo and Hausa are all tonal but differ in whether tone is written (§2.2). Under one protocol, does orthographic tone marking predict ASR quality independently of training-data volume? No prior work compares Nigerian languages this way.</p>
+  <p><b>2. The LLM-repair asymmetry.</b> Production pipelines are no longer ASR alone — they are ASR followed by LLM error correction, which works well in English. For Nigerian languages an LLM may replace a garbled name or numeral with a fluent, plausible, <em>wrong</em> one: output fluency rises, <strong>WER may even improve, and entity accuracy falls</strong>. WER cannot detect this by construction. Measuring it requires entity-level scoring (§5.1) and has not been done for African languages.</p>
+</div>
+
+<div class="callout warn">
+  <span class="lbl">Evidential status — read before citing</span>
+  <p><b>Established elsewhere, not here.</b> That low-resource ASR degrades sharply under noise is a known result — a Sundanese/Javanese study reports <strong>2–3× WER degradation at low SNR</strong>, and Indic-language work finds narrowband (2G GSM) bandwidth limitation to be the single most critical audio factor. This project tests whether that pattern holds for Nigerian languages and whether tone-marking modulates it. That is replication-and-extension in a new setting, <em>not</em> a new hypothesis — and it is the stronger position, because it supplies a predicted effect size to test against.</p>
+  <p><b>Out of scope.</b> No public spontaneous Nigerian-language speech exists, so the read→spontaneous gap cannot be measured here. Acoustic degradation is a measurable proxy; spontaneity is not. Do not claim a spontaneity result. See §8 and Milestone 5.</p>
+</div>
+
+<h2>1. The problem</h2>
+
+<h3>1.1 The measured gap</h3>
+
+<p>Recent work on Nigerian speech-to-speech translation reports large, uneven quality differences between the three major Nigerian languages. Scores below are SSA-COMET (translation into English; higher is better) — an indicator of the gap, not an ASR metric in itself.</p>
+
+<table>
+  <thead>
+    <tr><th>Language</th><th class="num">Approx. speakers</th><th class="num">SSA-COMET →EN</th><th>Tone marked in standard orthography?</th><th>Non-ASCII characters</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Yorùbá</td><td class="num">~45 M</td><td class="num">57.0</td><td>Yes — diacritics (á, à)</td><td>ẹ ọ ṣ + tone marks</td></tr>
+    <tr><td>Igbo</td><td class="num">~30 M</td><td class="num">20.6</td><td>Rarely</td><td>ị ọ ụ ṅ</td></tr>
+    <tr class="hl"><td>Hausa</td><td class="num">~50 M L1<br>~80 M+ incl. L2</td><td class="num">14.6</td><td>No</td><td>ɓ ɗ ƙ ƴ (hooked)</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Hausa is the largest Nigerian language and the worst served, by roughly four times.</strong> It is also a regional lingua franca well beyond Nigeria — Niger, Chad, Cameroon, Benin and northern Ghana — so the affected population is considerably larger than the Nigerian figure suggests.</p>
+
+<h3>1.2 The data landscape for Hausa</h3>
+
+<table>
+  <thead>
+    <tr><th>Dataset</th><th class="num">Hours</th><th>Transcribed</th><th>Licence</th><th>Notes</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>BibleTTS</td><td class="num">86.6</td><td>Yes</td><td>CC-BY-SA</td><td>Single speaker, religious domain</td></tr>
+    <tr><td>FLEURS</td><td class="num">~12</td><td>Yes</td><td>CC-BY</td><td>Purpose-built evaluation set; read speech</td></tr>
+    <tr><td>Common Voice</td><td class="num">~10</td><td>Yes</td><td>CC0</td><td>Crowdsourced; multi-speaker; gated download</td></tr>
+    <tr><td>CMU Wilderness</td><td class="num">~20</td><td>Yes</td><td>Unstated</td><td>Religious domain</td></tr>
+    <tr><td>ML Commons MSWC</td><td class="num">—</td><td>Keywords only</td><td>—</td><td>Keyword spotting, not full ASR</td></tr>
+    <tr><td>ALFFA Public</td><td class="num">—</td><td>Yes</td><td>—</td><td>Kaldi format; legacy toolchain</td></tr>
+  </tbody>
+</table>
+
+<p>Roughly 87 hours exist publicly, but <strong>BibleTTS alone is ~75% of it and is single-speaker religious reading</strong>. Genuine multi-speaker, multi-domain Hausa audio amounts to about 22 hours. For comparison, LibriSpeech provides 1,000 hours of English and Multilingual LibriSpeech provides 50,000 hours across eight languages.</p>
+
+<h3>1.3 The circularity problem</h3>
+
+<div class="callout warn">
+  <span class="lbl">Why current numbers are misleading</span>
+  <p>Meta's MMS model achieved 1,000+ language coverage by training largely on <strong>recordings of the New Testament</strong> — the only large parallel audio corpus spanning that many languages. Meanwhile, the dominant public Hausa dataset is also religious reading.</p>
+  <p>So a model trained on religious audio is evaluated on religious audio, in a field where religious audio dominates what is available. Reported performance is therefore optimistic by an unknown margin — and no one has quantified it.</p>
+</div>
+
+<h3>1.4 Prior work — what already exists</h3>
+
+<p>An earlier draft of this plan claimed no Hausa ASR evaluation existed. That was wrong, and the correction narrows the contribution considerably. What exists:</p>
+
+<table>
+  <thead>
+    <tr><th>Work</th><th>What it covers</th><th>Relation to this project</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><b>PazaBench</b><br><span class="src">Microsoft Research</span></td>
+      <td>Public African ASR leaderboard — 39 African languages, 52 models, WER / CER / RTFx, hosted on HuggingFace. Initial depth on six Kenyan languages.</td>
+      <td><b>Direct overlap on clean-speech leaderboarding.</b> Do not rebuild this. If it covers Nigerian languages, adopt its clean-condition numbers as the baseline (see Milestone 0).</td>
+    </tr>
+    <tr>
+      <td><b>Hausa/Fongbe ASR evaluation</b><br><span class="src">arXiv 2606.22274, Jun 2026</span></td>
+      <td>Evaluates Whisper and MMS on Hausa, framed around bootstrapping text corpora from speech</td>
+      <td>Pre-empts the headline model comparison on clean data. Cite as the clean-condition reference point.</td>
+    </tr>
+    <tr>
+      <td><b>Noise robustness, Sundanese &amp; Javanese</b><br><span class="src">arXiv 2509.25878</span></td>
+      <td>2–3× WER degradation at low SNR for low-resource languages</td>
+      <td>Supplies the predicted effect size. This project asks whether it replicates for Nigerian languages.</td>
+    </tr>
+    <tr>
+      <td><b>Indic-language factor study</b><br><span class="src">arXiv 2606.09335</span></td>
+      <td>Bandwidth limitation (2G GSM narrowband) is the most critical audio factor</td>
+      <td>Justifies prioritising condition C2 (§5.4)</td>
+    </tr>
+    <tr>
+      <td><b>Pashto zero-shot benchmark</b><br><span class="src">arXiv 2604.04598</span></td>
+      <td>Zero-shot ASR, script failure, cross-domain evaluation for one low-resource language</td>
+      <td>The closest methodological template. Follow its structure; do not duplicate its claim.</td>
+    </tr>
+    <tr>
+      <td><b>Diacritic-aware Hausa ASR</b><br><span class="src">Abubakar et al., 2024</span></td>
+      <td>Whisper-large at 4.23% WER on Common Voice Hausa</td>
+      <td>Fine-tuned and in-domain, so not comparable to zero-shot figures — but it disproves any blanket "Hausa ASR does not work" claim. Must be addressed directly.</td>
+    </tr>
+    <tr>
+      <td><b>LLM error correction for low-resource ASR</b><br><span class="src">arXiv 2605.19711, May 2026 — West Frisian</span></td>
+      <td>Contamination-aware study of whether LLM generative error correction (GER) generalises beyond high-resource languages</td>
+      <td><b>The closest prior work to contribution 2.</b> But West Frisian is European, Latin-script and closely related to Dutch and English, so LLM exposure is far higher than for any Nigerian language. Adopt its contamination methodology; Nigerian languages are the harder case.</td>
+    </tr>
+    <tr>
+      <td><b>Entity- and slot-level ASR metrics</b><br><span class="src">Interspeech 2015 onward; MC-WER, Semantic Error Rate, Slot Error Rate</span></td>
+      <td>Established critique that WER weights all words equally and hides errors on the entities downstream systems act on. Medical ASR at 70–77% medication-slot accuracy is documented as clinically insufficient.</td>
+      <td><b>These metrics are not novel and must not be presented as such.</b> The contribution is applying them to Nigerian languages under degradation and LLM correction — not inventing them.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>1.5 What remains open</h3>
+
+<p>After that correction, four things are genuinely unmeasured:</p>
+
+<ul>
+  <li><strong>Nigerian languages under degradation.</strong> The robustness studies above cover Austronesian and Indic languages. No equivalent exists for Hausa, Yorùbá, Igbo or Nigerian Pidgin.</li>
+  <li><strong>Tone-marking as a variable.</strong> No work compares languages that differ in whether tone is orthographically marked, under one protocol (§2.2).</li>
+  <li><strong>Whether LLM correction helps or harms African-language ASR.</strong> Asked once, for one European low-resource language. The mechanism that should make it fail — hallucination on entities outside the model's pretraining distribution — applies far more strongly to Nigerian names, places and numeral constructions.</li>
+  <li><strong>Entity-level scoring for Nigerian languages.</strong> The metrics exist; they have not been applied here, and they are the only instruments that can detect a fluent-but-wrong substitution.</li>
+</ul>
+
+<div class="callout warn">
+  <span class="lbl">Strategic consequence</span>
+  <p><strong>Do not position this as "the Nigerian ASR leaderboard."</strong> Microsoft Research has built that, with far greater resources. Position it as the question the leaderboards structurally cannot answer, because they score clean read speech only: <em>how do these models behave under the conditions Nigerians actually use them in?</em></p>
+</div>
+
+<h2>2. Language selection</h2>
+
+<h3>2.1 Recommendation: build for four, lead with Hausa</h3>
+
+<p>An earlier version of this plan proposed Hausa only. That was the wrong scope. The harness is language-agnostic, and both target datasets (FLEURS and Common Voice) already contain Hausa, Yorùbá and Igbo. Covering all three costs no additional <em>engineering</em> — the same harness, normaliser and scoring code serve every language. It does multiply GPU time roughly fourfold, which is the bulk of the ~40 GPU-hours and the USD 60–130 in §4; that is a compute cost, not a design cost, and it is the main reason the budget is what it is.</p>
+
+<p>More importantly, <strong>the cross-language comparison is the intellectual contribution.</strong> "Hausa ASR is poor" is an observation. "Yorùbá scores four times better than Hausa under identical evaluation conditions, and here is the evidence for why" is a research finding.</p>
+
+<h3>2.2 The natural experiment</h3>
+
+<p>The three languages differ systematically in how tone is written, which makes them an unusually clean comparison:</p>
+
+<ul>
+  <li><strong>Yorùbá</strong> — tonal, and tone <em>is</em> marked orthographically with diacritics. Best measured performance.</li>
+  <li><strong>Igbo</strong> — tonal, tone usually <em>not</em> marked in standard writing. Middling performance.</li>
+  <li><strong>Hausa</strong> — tonal, tone <em>not</em> marked in standard orthography. Worst performance.</li>
+</ul>
+
+<p>This yields a testable question: <strong>does orthographic tone marking correlate with ASR quality, independently of training-data volume?</strong> If it does, that has direct implications for how low-resource speech data should be transcribed — a finding useful well beyond Nigeria.</p>
+
+<p>The three languages also stress text normalisation differently (hooked letters vs. subdot letters vs. tone diacritics), which makes the normalisation analysis richer across four languages than one.</p>
+
+<h3>2.3 Why Hausa still leads</h3>
+
+<table>
+  <thead>
+    <tr><th>Criterion</th><th>Rationale</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Largest population</td><td>Biggest L1 base of the three, plus substantial L2 use across five countries</td></tr>
+    <tr><td>Worst measured quality</td><td>Largest gap to close; highest marginal value from improvement</td></tr>
+    <tr><td>Highest need for voice</td><td>Northern Nigeria has lower literacy rates, so voice is the primary viable interface rather than a convenience</td></tr>
+    <tr><td>Least researcher attention</td><td>Yorùbá already has a decade-spanning NLP survey literature; Hausa has markedly less</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Nigerian Pidgin</strong> should be included as a fourth if data permits. With well over 100 million L2 speakers it is arguably the most widely understood language in the country, and because it is English-lexified, model behaviour on it is genuinely unpredictable — models may perform unexpectedly well, or fail in unexpected ways. Either outcome is interesting.</p>
+
+<h2>3. Use cases — why the measurement matters</h2>
+
+<h3>3.1 Error rate is the viability gate</h3>
+
+<p>Word error rate is not an academic score; it determines what can be built. Rough thresholds:</p>
+
+<table>
+  <thead>
+    <tr><th class="num">WER</th><th>What becomes possible</th></tr>
+  </thead>
+  <tbody>
+    <tr><td class="num">≤ 10%</td><td>Usable transcripts; captioning, documentation, archive search</td></tr>
+    <tr><td class="num">10–25%</td><td>Transcripts with human correction; reliable intent detection and call routing</td></tr>
+    <tr><td class="num">25–40%</td><td>Not usable as text, but often sufficient to classify <em>what the caller wants</em></td></tr>
+    <tr><td class="num">&gt; 50%</td><td>Broadly unusable</td></tr>
+  </tbody>
+</table>
+
+<p>A service designer choosing between a 25% and a 65% error rate is choosing between a viable product and an impossible one. At present they cannot make that choice on evidence, because the evidence does not exist.</p>
+
+<div class="callout warn">
+  <span class="lbl">These thresholds are necessary but not sufficient</span>
+  <p>WER thresholds describe <em>prose</em> quality. They say nothing about the words that carry the payload — a dosage, an age, a place name, a quantity. A transcript at 20% WER whose every numeral is wrong is worse than useless in a clinical setting, and WER reports it as good. Sector viability must therefore be judged on entity-level accuracy (§5.1), not on WER alone.</p>
+</div>
+
+<h3>3.2 Sectors</h3>
+
+<table>
+  <thead>
+    <tr><th>Sector</th><th>Application</th><th>Why voice specifically</th><th class="num">Prose WER</th><th>Entity accuracy</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Health</td><td>Maternal-health hotlines, community health worker triage, vaccination information lines</td><td>Lower literacy in the north makes text interfaces exclusionary</td><td class="num">~30%</td><td><b>Critical</b> — dosages, ages, dates. Clinical work documents 70–77% slot accuracy as insufficient; no read-back is possible with a patient who cannot read.</td></tr>
+    <tr><td>Agriculture</td><td>Extension advice, pest and disease identification, market prices</td><td>Smallholder farmers on feature phones; hands often occupied</td><td class="num">~30%</td><td>High — quantities, prices, dates</td></tr>
+    <tr><td>Financial inclusion</td><td>Voice banking, agent-network support, fraud reporting</td><td>Large unbanked and underbanked population outside major cities</td><td class="num">~30%</td><td>High, but <b>mitigable</b> — a confirmation read-back before execution catches numeral errors, so this is the least ASR-constrained of the transactional cases</td></tr>
+    <tr><td>Humanitarian</td><td>Displacement registration, emergency information in the north-east</td><td>Crisis conditions, mixed literacy, urgency</td><td class="num">~30%</td><td><b>Critical</b> — locations, headcounts, names; errors propagate into registration records</td></tr>
+    <tr><td>Media &amp; archive</td><td>Captioning and search over Hausa-language broadcast output</td><td>Very large Hausa broadcast ecosystem, almost none of it searchable</td><td class="num">~15%</td><td>Moderate — names drive search recall, but errors are recoverable and non-harmful</td></tr>
+    <tr><td>Education</td><td>Mother-tongue literacy and learning tools</td><td>Pedagogical evidence favours early instruction in first language</td><td class="num">varies</td><td>Low — prose fidelity matters more than entities</td></tr>
+  </tbody>
+</table>
+
+<p class="src">Prose WER thresholds and the entity-accuracy ratings are engineering judgement, offered to structure the discussion — not measurements. The one cited figure (70–77% medication-slot accuracy being clinically insufficient) comes from the medical ASR literature. Establishing real per-sector thresholds for Nigerian languages would require deployment studies that do not yet exist.</p>
+
+<h3>3.3 The delivery channel</h3>
+
+<p>In practice the interface is not a bespoke app. It is <strong>WhatsApp voice notes</strong> and <strong>IVR phone lines</strong> — the channels already in universal use. Any downstream product built on this benchmark should assume that pipeline: voice note in, transcript, intent, spoken reply out.</p>
+
+<h2>4. Delivery plan</h2>
+
+<table>
+  <thead>
+    <tr><th class="num">#</th><th>Milestone</th><th class="num">Effort</th><th>Definition of done</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="num">0</td>
+      <td><b>Environment, smoke test, and PazaBench check</b><br><span class="src">Install dependencies; load FLEURS Hausa; run <code>whisper-tiny</code> on one clip. <b>Also: check whether PazaBench already covers Hausa / Yorùbá / Igbo</b> — if it does, adopt its clean-condition numbers and Milestone 3 shrinks substantially.</span></td>
+      <td class="num">1 evening</td>
+      <td>One model hypothesis printed beside its reference transcript, and a decision on whether clean-condition runs are still needed</td>
+    </tr>
+    <tr>
+      <td class="num">1</td>
+      <td><b>Working loop</b><br><span class="src">20 clips, one model, WER computed via <code>jiwer</code></span></td>
+      <td class="num">1 weekend</td>
+      <td>A single WER number (expect 80–100%; this tests plumbing, not quality)</td>
+    </tr>
+    <tr>
+      <td class="num">2</td>
+      <td><b>Metrics and second dataset</b><br><span class="src">Normaliser; raw + normalised WER, CER, entity and numeral error rate; entity annotation of the eval subset; add Common Voice; build the audio-degradation pipeline (§5.4) — noise sourcing, SNR-controlled mixing, resampling, validation</span></td>
+      <td class="num">2 weekends</td>
+      <td>One model scored on all metrics across both datasets and at least one degraded condition</td>
+    </tr>
+    <tr>
+      <td class="num">3</td>
+      <td><b>Full run</b><br><span class="src">~136 evaluation runs: 4 models × 4 languages × 7 conditions, plus 24 English-control runs. Rented GPU, ~40 GPU-hours. <b>Reduces by roughly a third</b> if PazaBench supplies the clean baselines.</span></td>
+      <td class="num">2 weekends</td>
+      <td>Complete degradation curves with confidence intervals, and the Nigerian-vs-English comparison</td>
+    </tr>
+    <tr>
+      <td class="num">3b</td>
+      <td><b>LLM-correction arm</b><br><span class="src">Re-score a bounded subset (2 models × 4 languages × C0/C2/C4, 200 utterances) through an LLM correction stage; run the contamination check (§5.2)</span></td>
+      <td class="num">1 weekend</td>
+      <td>Paired WER and entity-accuracy figures for raw vs corrected output, with the contamination result reported</td>
+    </tr>
+    <tr>
+      <td class="num">4</td>
+      <td><b>Analysis and publication</b><br><span class="src">Error taxonomy (~400 errors hand-categorised across four languages), related work, repository, write-up</span></td>
+      <td class="num">2 weekends</td>
+      <td>Public MIT repository; reproducible by a stranger; preprint posted</td>
+    </tr>
+    <tr>
+      <td class="num">5</td>
+      <td><b>Spoken-quantities test set</b> <span class="tag grey">OPTIONAL</span><br><span class="src">Dosages, ages, dates, quantities and monetary amounts across the four languages, including code-switched forms; 1–2 speakers each</span></td>
+      <td class="num">1 weekend + review</td>
+      <td>300–500 utterances published as a companion dataset</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Milestone 5 is separable. Existing corpora contain few spoken quantities, so entity-level scoring (§5.1) is starved of exactly the tokens it is meant to measure — a purpose-built set fixes that. It is also the smallest tractable <em>dataset</em> contribution available here, and a far more concrete grant application than "more Nigerian speech data is needed". Prioritise health-relevant quantities (dosages, ages, dates) over monetary amounts: the clinical consequence of a numeral error is documented and unmitigated, whereas a payment flow can read the amount back for confirmation.</p>
+
+<div class="callout warn">
+  <span class="lbl">Sequencing rules</span>
+  <p><strong>Milestone 0 is where projects die.</strong> Unfamiliar ecosystem, and everything fails for boring reasons — wrong config name, gated dataset, missing audio codec. Do nothing else that evening.</p>
+  <p><strong>Do not rent a GPU before Milestone 3.</strong> Everything prior runs on a laptop with tiny models. Never debug a harness and a cloud bill at the same time.</p>
+  <p><strong>Budget headroom for reruns.</strong> The ~40 GPU-hour figure assumes everything works first time. It will not. Assume at least one full re-run after a bug is found in the normaliser or the degradation pipeline, and price accordingly.</p>
+</div>
+
+<h3>4.1 Model pool</h3>
+
+<p>The run arithmetic in Milestone 3 assumes a <strong>core grid of four models</strong>: the three open checkpoints below plus one commercial API. A second commercial API and any community fine-tunes are scored opportunistically on the clean and narrowband conditions only, and are not part of the 136-run figure.</p>
+
+<table>
+  <thead>
+    <tr><th>Model</th><th>Why included</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>openai/whisper-large-v3</code></td><td>The default choice; scale-driven, overwhelmingly English training data</td></tr>
+    <tr><td><code>facebook/mms-1b-all</code></td><td>Purpose-built for low-resource languages. Reported to beat Whisper consistently in zero-shot low-resource settings, so <b>expect a known answer on clean audio</b> — the open question is whether that ordering survives degradation.</td></tr>
+    <tr><td><code>facebook/seamless-m4t-v2-large</code></td><td>Third architecture family; covers all target languages</td></tr>
+    <tr><td>1–2 commercial APIs</td><td>What a practitioner would actually reach for. Verify Nigerian language support first — absence is itself a finding worth recording.</td></tr>
+    <tr><td>Community fine-tunes</td><td>Any Hausa/Yorùbá/Igbo checkpoints published on HuggingFace</td></tr>
+  </tbody>
+</table>
+
+<h2>5. Methodology</h2>
+
+<h3>5.1 Metrics</h3>
+
+<p><strong>Word Error Rate</strong> — edit distance at word level, normalised by reference length:</p>
+
+<pre>WER = (Substitutions + Deletions + Insertions) / Reference_word_count</pre>
+
+<p><strong>Character Error Rate</strong> — the same formula at character level. Reported alongside WER because it distinguishes "wrong word" from "nearly-right word", which matters for morphologically rich languages.</p>
+
+<p><strong>Entity Error Rate</strong> and <strong>Numeral Error Rate</strong> — the same alignment, filtered to the tokens that carry meaning: numbers, dates, quantities, personal and place names. Scored strictly, so any error within a multi-token entity fails the whole entity.</p>
+
+<div class="callout">
+  <span class="lbl">Why entities are scored separately</span>
+  <p>These are <strong>established metrics, not a contribution of this work</strong> — entity- and slot-level ASR evaluation dates to Interspeech 2015, and medical ASR already uses MC-WER for the same reason. WER weights every word equally, so substituting one medication for another scores exactly as badly as substituting "the" for "a". In clinical evaluation, systems reaching 70–77% medication-slot accuracy are documented as insufficient for autonomous use while showing acceptable WER.</p>
+  <p>Nigerian languages add two stressors: numerals are where <b>code-switching</b> concentrates — speakers routinely state amounts and dates in English mid-sentence — and Yorùbá numerals are structurally complex (vigesimal and subtractive). Both are unmeasured here.</p>
+</div>
+
+<h3>5.2 The LLM-correction arm</h3>
+
+<p>Production pipelines now append an LLM generative-error-correction (GER) stage to ASR. Every transcript is therefore scored <strong>twice</strong>: raw ASR output, and the same output after LLM correction.</p>
+
+<div class="callout warn">
+  <span class="lbl">The failure this is designed to catch</span>
+  <p>LLMs are documented as prone to hallucination when resolving <em>rare named entities outside their pretraining distribution</em>. For Hausa, Yorùbá and Igbo, essentially every personal name, place name and numeral construction is outside that distribution. The predicted failure is not that correction does nothing — it is that the LLM replaces a garbled entity with a fluent, plausible, <strong>wrong</strong> one.</p>
+  <p>When that happens, <strong>WER can improve while entity accuracy falls.</strong> Reporting WER alone would record this as a success. The paired WER / entity-accuracy comparison across the two arms is the measurement.</p>
+</div>
+
+<p><strong>Scoping.</strong> The correction arm applies to a bounded subset — two ASR models × four languages × three conditions (C0, C2, C4) on a fixed 200-utterance sample — not the full grid. ASR inference is not repeated; only the correction call and re-scoring.</p>
+
+<p><strong>Contamination control.</strong> An LLM may have memorised the evaluation transcripts, inflating apparent correction quality. FLEURS derives from FLoRes, which is public and well-indexed, so this is a live risk. Follow the contamination-aware protocol from the West Frisian study (§1.4) and report the check explicitly.</p>
+
+<h3>5.3 Normalisation — the credibility-critical decision</h3>
+
+<p>Consider reference <code>ɗaya</code> against hypothesis <code>daya</code>. The model heard the word correctly but wrote plain <code>d</code> for hooked <code>ɗ</code>.</p>
+
+<ul>
+  <li><strong>Raw WER: 100%</strong> on that word — different strings, counted as a substitution.</li>
+  <li><strong>Normalised WER: 0%</strong> — after mapping <code>ɗ → d</code>.</li>
+</ul>
+
+<p>Both are correct answers to different questions. <em>Did the model recognise the word?</em> — normalised. <em>Can this output be used directly in a Hausa application?</em> — raw, because wrong orthography is wrong.</p>
+
+<div class="callout">
+  <span class="lbl">Rule</span>
+  <p>Publish <strong>both</strong> figures, with the normalisation function visible in the repository. Reporting only normalised overstates usability; reporting only raw measures orthographic convention rather than recognition. Publishing both, transparently, is what distinguishes a benchmark from an opinion.</p>
+</div>
+
+<div class="callout warn">
+  <span class="lbl">Required external validation</span>
+  <p>Orthographic decisions — hooked-letter handling, diacritic stripping, tone-mark treatment — <strong>must be reviewed by native speakers of each language</strong> before publication. This is not optional polish. If these calls are wrong, every number in the paper is wrong, and the first native-speaking reader will say so publicly.</p>
+</div>
+
+<h3>5.4 Evaluation conditions and the English control</h3>
+
+<p>Both target datasets contain <em>read</em> speech, so comparing them alone measures recording-condition variation, not the read→spontaneous gap. To obtain a genuine degradation curve, audio is systematically degraded using standard techniques rather than sourced from new recordings:</p>
+
+<table>
+  <thead>
+    <tr><th>Condition</th><th>How produced</th><th>What it tests</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><b>C0</b> — clean</td><td>FLEURS as distributed (16 kHz)</td><td>Baseline; comparable to published figures</td></tr>
+    <tr><td><b>C1</b> — varied recording</td><td>Common Voice as distributed</td><td>Real microphone, room and speaker variation</td></tr>
+    <tr><td><b>C2</b> — narrowband</td><td>FLEURS resampled 16 k → 8 k → 16 k</td><td>Telephone channel (IVR, voice calls)</td></tr>
+    <tr><td><b>C3</b> — noisy</td><td>FLEURS + additive noise at 20 / 10 / 5 dB SNR</td><td>Ambient noise (market, street, clinic)</td></tr>
+    <tr><td><b>C4</b> — narrowband + noise</td><td>C2 and C3 combined</td><td>Realistic deployment worst case</td></tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  <span class="lbl">The control is what makes the claim testable</span>
+  <p>Run the <strong>identical protocol on FLEURS English</strong> — the six FLEURS-derived conditions (C0, C2, C3 at three SNRs, C4). C1 is excluded from the control because it is a different corpus, not a degradation, and no comparable English arm exists. Four models × six conditions = the 24 control runs in Milestone 3.</p>
+  <p>Without an English baseline, "Nigerian languages degrade badly" has nothing to be worse <em>than</em> — it is an assertion. With it, the comparison becomes a measurement.</p>
+  <p>Report <strong>both</strong> absolute WER increase and the relative degradation ratio (WER<sub>condition</sub> ÷ WER<sub>clean</sub>). A language already at 60% clean WER has little headroom left, so absolute figures alone can hide a floor effect and make a badly-degrading language look robust.</p>
+</div>
+
+<h3>5.5 Statistical treatment</h3>
+
+<p>Bootstrap resampling over utterances to produce 95% confidence intervals on each WER figure. Without intervals, a model ranking is not evidence — reviewers will say so, correctly.</p>
+
+<h3>5.6 Error analysis</h3>
+
+<p>Sample ~100 errors per language and categorise by hand: tone confusions, hooked-letter or diacritic substitutions, English loanwords, code-switching, morphological affixes, hallucinated insertions. Report the distribution.</p>
+
+<p>This is roughly one day of work and it is the difference between a table and a contribution. It is also the part that tells a practitioner whether a model's failures are systematic and fixable, or diffuse and fatal.</p>
+
+<h2>6. Publication path</h2>
+
+<table>
+  <thead>
+    <tr><th>Venue</th><th>Fit</th><th>Notes</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><b>AfricaNLP workshop</b></td><td>Best first target</td><td>Purpose-built community for African language NLP; welcoming to independent and African researchers</td></tr>
+    <tr><td><b>LREC / SIGUL</b></td><td>Strong</td><td>The resource-and-evaluation venue; explicitly values benchmark papers</td></tr>
+    <tr><td><b>Interspeech</b></td><td>Stretch</td><td>Main speech conference; higher bar, real low-resource track</td></tr>
+    <tr><td><b>arXiv preprint</b></td><td>Do regardless</td><td>The version people actually read and cite</td></tr>
+  </tbody>
+</table>
+
+<h3>6.1 Practical frictions for an independent researcher</h3>
+
+<ul>
+  <li><strong>arXiv endorsement</strong> — first-time <code>cs.CL</code> submitters generally need endorsement from an established author. Resolve early, not the night before a deadline.</li>
+  <li><strong>Registration fees</strong> — acceptance at a major venue usually requires paid registration. Waivers and virtual attendance are frequently available for researchers from under-represented regions; ask.</li>
+  <li><strong>No institutional review</strong> — a co-author is the substitute for the feedback an institution would otherwise provide.</li>
+</ul>
+
+<div class="callout">
+  <span class="lbl">Strong recommendation</span>
+  <p>Find a co-author — Masakhane, or a Nigerian university speech/NLP group. It solves arXiv endorsement, supplies native-speaker validation, and provides pre-review. It also changes the character of the work: a collaboration with speakers of the languages is a stronger position than a solo outsider benchmarking someone else's language. Approach them <em>after</em> Milestone 1, when there is a working harness to show.</p>
+</div>
+
+<h2>7. Funding path</h2>
+
+<p>The benchmark itself is not fundable — it costs USD 60–130. What it unlocks is: a purpose-built evaluation corpus of spontaneous, telephone-quality Nigerian-language speech, which is genuinely expensive (speaker recruitment, consent, transcription, quality control) and genuinely valuable.</p>
+
+<p><strong>Sequence: self-fund the benchmark → publish → the results become the evidence base for the grant application.</strong> "I believe Hausa ASR is poor" is weak. "Here is my published measurement showing degradation from 25% to 65% WER across domains, here is my working harness, here is the corpus I propose to build" is a serious proposal.</p>
+
+<table>
+  <thead>
+    <tr><th>Funder</th><th>Fit</th><th>Notes</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Lacuna Fund</td><td>Best fit</td><td>Exists specifically to fund labelled datasets for underserved communities; heavy African language focus</td></tr>
+    <tr><td>AI4D Africa</td><td>Strong</td><td>African language datasets and research capacity building</td></tr>
+    <tr><td>UNICEF Venture Fund</td><td>Good</td><td>Equity-free, open-source mandatory, Nigeria is an eligible country</td></tr>
+    <tr><td>Cohere For AI</td><td>Accessible now</td><td>Explicitly supports independent researchers; community compute</td></tr>
+    <tr><td>Cloud / GPU credits</td><td>Easiest first win</td><td>Google Cloud, AWS, NVIDIA, HuggingFace community grants — low friction, fast</td></tr>
+    <tr><td>Digital Public Goods Alliance</td><td>Signal, not cash</td><td>DPG registration unlocks credibility with other funders once the code is public</td></tr>
+  </tbody>
+</table>
+
+<div class="callout warn">
+  <span class="lbl">The barrier to plan around</span>
+  <p>Most serious grants require an <strong>institutional applicant or fiscal sponsor</strong> — they will not disburse to an individual. The university partnership that strengthens the paper is the same one that makes the work fundable. Solve both with one relationship.</p>
+</div>
+
+<h2>8. Risks and open questions</h2>
+
+<table>
+  <thead>
+    <tr><th>Item</th><th>Status</th><th>Mitigation</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>FLEURS config names</td><td><b>Resolved</b> — verified 2026-08-07</td><td><code>ha_ng</code>, <code>yo_ng</code>, <code>ig_ng</code> and <code>en_us</code> all exist (103 configs total); <code>ha_ng</code> has train/validation/test. No longer a risk.</td></tr>
+    <tr><td>Common Voice gating</td><td>Likely gated</td><td>Create HuggingFace account and accept terms before Milestone 2</td></tr>
+    <tr><td>Commercial API language support</td><td>Unknown</td><td>Check vendor language lists early; absence is a recordable finding</td></tr>
+    <tr><td>Orthographic divergence between datasets</td><td>Likely</td><td>Not noise to be cleaned — report it as a finding about Nigerian text data</td></tr>
+    <tr><td>Native-speaker reviewers</td><td>Not yet secured</td><td>Blocking for publication; begin recruitment during Milestone 2</td></tr>
+    <tr><td>WAXAL Hausa</td><td>Confirmed TTS-only</td><td>Not usable for ASR evaluation; excluded. Licence is CC-BY-SA-4.0, not CC-BY-4.0 as widely reported.</td></tr>
+    <tr><td><b>No spontaneous speech data exists</b></td><td>Confirmed — all public Nigerian-language corpora are read speech</td><td>Read→spontaneous degradation is <b>out of scope</b>. Simulated acoustic degradation (§5.4) is a proxy, not a substitute. Do not claim a spontaneity result. This is the primary motivation for Milestone 5 and for the grant.</td></tr>
+    <tr><td>Floor effects in degradation</td><td>Anticipated</td><td>A language already at high clean WER has little room to degrade further; always report the relative ratio alongside absolute change</td></tr>
+    <tr><td>Noise corpus selection</td><td>Open</td><td>Additive noise should be realistic (market, street, indoor babble) rather than white noise; source and document it</td></tr>
+    <tr><td><b>PazaBench overlap</b></td><td>Unresolved — resolve at Milestone 0</td><td>If it covers Nigerian languages, adopt its clean baselines rather than re-running them. If it later adds degradation conditions, the contribution narrows to tone-marking and numerals — which is why those two must stay central.</td></tr>
+    <tr><td>Novelty is narrower than first assessed</td><td>Confirmed (v1.2)</td><td>Clean-speech Nigerian ASR evaluation already exists. Lead with degradation and numerals; treat clean results as a reference point, never as the finding.</td></tr>
+    <tr><td>Fine-tuned baselines exist</td><td>Confirmed</td><td>Abubakar et al. report 4.23% WER on Common Voice Hausa. Address it explicitly — zero-shot and fine-tuned in-domain figures are not comparable, and a reviewer will raise it if you do not.</td></tr>
+    <tr><td><b>LLM contamination</b></td><td>Live risk</td><td>FLEURS derives from FLoRes, which is public and well-indexed, so the correction LLM may have memorised the references. Run and report the contamination check (§5.2); an uncontrolled result here is not publishable.</td></tr>
+    <tr><td>Entity metrics are not novel</td><td>Confirmed (v1.3)</td><td>Entity/slot error rate is established practice. Claim only the application to Nigerian languages and the LLM-arm interaction — never the metric itself.</td></tr>
+    <tr><td>Entity annotation burden</td><td>Underestimated risk</td><td>Entity-level scoring needs the eval subset annotated for names, numbers and dates. Budget for it in Milestone 2 and have a native speaker verify the Nigerian-language spans.</td></tr>
+  </tbody>
+</table>
+
+<h2>9. Decision point</h2>
+
+<p>Milestone 4 is the natural stopping point — publish, then assess response before committing further. Natural extensions if it lands: additional languages, the spoken-quantities set (Milestone 5), and the spontaneous-speech corpus. <strong>A hosted leaderboard is not on that list</strong> — PazaBench already occupies it (§1.4), and building one would abandon the positioning this plan depends on.</p>
+
+<p>If it does not land, the floor is still a public artifact, a working harness, and genuine fluency in a domain that was unfamiliar a month earlier.</p>
+
+<p><strong>Do not plan past Milestone 4 yet.</strong> Milestone 3b sits before it and is in scope; Milestone 5 is deferred until after publication.</p>
+
+<h2>Revision history</h2>
+
+<table>
+  <thead><tr><th>Version</th><th>Change</th></tr></thead>
+  <tbody>
+    <tr><td>1.0</td><td>Initial plan — Hausa-only, two datasets, clean speech</td></tr>
+    <tr><td>1.1</td><td>Extended to four languages; added acoustic degradation conditions and an English control; added numeral error rate and Milestone 5; corrected effort from five to seven weekends and cost from USD 20 to 50–100</td></tr>
+    <tr><td>1.4</td><td><b>Consistency pass.</b> Seven acoustic conditions, not six (exec summary contradicted §5.4 and Milestone 3). §1.5 said "three things" over a four-item list. Withdrew the claim that adding languages costs "close to zero" — it quadruples GPU time and is the main driver of the budget. Removed "hosted leaderboard" from §9's extensions, where it contradicted §1.4's instruction not to rebuild PazaBench. Clarified that the 136-run figure assumes a four-model core grid, and that the 24 English-control runs cover the six FLEURS-derived conditions only. Split the sector table into prose-WER and entity-accuracy columns and marked both as engineering judgement rather than measurement.</td></tr>
+    <tr><td>1.3</td><td><b>Repositioned contribution 2.</b> Dropped the voice-banking rationale — a confirmation read-back catches the errors it claimed were decisive. Acknowledged that entity/slot error rate is established practice, not novel. Replaced it with the <b>LLM-repair asymmetry</b>: production pipelines now append LLM error correction, which is predicted to substitute fluent-but-wrong entities for Nigerian languages, improving WER while degrading entity accuracy. Added §5.2 (LLM-correction arm, with contamination control), Milestone 3b, and health as the primary sector anchor. Effort seven → eight weekends; cost USD 50–100 → 60–130.</td></tr>
+    <tr><td>1.2</td><td><b>Novelty correction after a literature check.</b> Prior work exists (PazaBench, Hausa/Fongbe ASR evaluation, low-resource noise-robustness studies). Removed the "first benchmark" claim, added §1.4 prior work and §1.5 open questions, reframed the hypothesis as replication-and-extension with a 2–3× predicted effect size, and repositioned the contribution onto tone-marking and numerals.</td></tr>
+  </tbody>
+</table>
+
+<footer>
+  Sources: PazaBench, Microsoft Research · LLM error correction for low-resource ASR, West Frisian (arXiv 2605.19711) · Hausa/Fongbe ASR evaluation (arXiv 2606.22274) · Sundanese &amp; Javanese noise robustness (arXiv 2509.25878) · Indic ASR factor study (arXiv 2606.09335) · Pashto zero-shot benchmark (arXiv 2604.04598) · HausaNLP status survey (arXiv 2505.14311) · Hausa &amp; Fongbe resource survey (arXiv 2605.22828) · NaijaS2ST multi-accent benchmark (arXiv 2604.16287) · FLEURS (arXiv 2205.12446) · WAXAL dataset card, HuggingFace · Mozilla Common Voice. Speaker figures are approximate and vary by source. SSA-COMET figures are speech-to-speech translation scores, reported as an indicator of relative quality, not as ASR error rates.
+</footer>
+
+</body>
+</html>

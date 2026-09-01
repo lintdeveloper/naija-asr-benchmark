@@ -4,9 +4,11 @@ Measuring Nigerian-language ASR under the conditions it is actually deployed in
 — narrowband telephone audio, ambient noise, and code-switching — rather than
 the clean read speech public leaderboards score.
 
-The full research plan — prior work, the two contributions, evidential status, per-sector
-thresholds and the milestone breakdown — is a separate 1.4 document, not yet in this repo.
-Ask if you want a copy.
+**The full research plan is in this repo:** [`docs/plan.html`](docs/plan.html) —
+14 pages, version 1.4. Prior work and what it forecloses, the two contributions, an evidential-status
+section separating what is established elsewhere from what is tested here, per-sector WER
+thresholds, cost, and the milestone breakdown. [`docs/plan.pdf`](docs/plan.pdf) is the same
+document if you would rather read it that way.
 
 **Scope, in one line:** this is an evaluation harness, not a machine-learning project. No training,
 no fine-tuning, no novel architecture — it calls existing public models and computes standard error
