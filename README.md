@@ -4,7 +4,13 @@ Measuring Nigerian-language ASR under the conditions it is actually deployed in
 — narrowband telephone audio, ambient noise, and code-switching — rather than
 the clean read speech public leaderboards score.
 
-Plan: `~/Documents/nigerian-asr-benchmark-plan.pdf`
+The full research plan — prior work, the two contributions, evidential status, per-sector
+thresholds and the milestone breakdown — is a separate 1.4 document, not yet in this repo.
+Ask if you want a copy.
+
+**Scope, in one line:** this is an evaluation harness, not a machine-learning project. No training,
+no fine-tuning, no novel architecture — it calls existing public models and computes standard error
+metrics under acoustic conditions no public leaderboard measures.
 
 **Status: Milestone 0 complete (2026-08-27).** Toolchain verified, FLEURS configs resolved, first
 zero-shot baselines recorded below. Re-verified end to end on 2026-08-28 after the package
