@@ -21,7 +21,7 @@ SAMPLE_COUNT = 5
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        prog="naija-asr-bench",
+        prog="naija-asr-benchmark",
         description="Milestone 0 smoke test for Nigerian-language ASR evaluation.",
     )
     parser.add_argument(

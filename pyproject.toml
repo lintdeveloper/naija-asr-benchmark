@@ -1,5 +1,5 @@
 [project]
-name = "naija-asr-bench"
+name = "naija-asr-benchmark"
 version = "0.1.0"
 description = "Measuring Nigerian-language ASR under narrowband, noisy and code-switched conditions"
 readme = "README.md"
@@ -25,17 +25,17 @@ dependencies = [
 dev = ["pytest>=8.0", "ruff>=0.6", "mypy>=1.11"]
 
 [project.scripts]
-naija-asr-bench = "naija_asr_bench.cli:main"
+naija-asr-benchmark = "naija_asr_benchmark.cli:main"
 
 [project.urls]
-Repository = "https://github.com/lintdeveloper/naija-asr-bench"
+Repository = "https://github.com/lintdeveloper/naija-asr-benchmark"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/naija_asr_bench"]
+packages = ["src/naija_asr_benchmark"]
 
 # ── ruff: lint + format, replacing black/flake8/isort ────────────────────────
 [tool.ruff]

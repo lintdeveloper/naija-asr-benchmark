@@ -1,4 +1,4 @@
-# naija-asr-bench
+# naija-asr-benchmark
 
 Measuring Nigerian-language ASR under the conditions it is actually deployed in
 — narrowband telephone audio, ambient noise, and code-switching — rather than
@@ -95,15 +95,15 @@ Requires [uv](https://docs.astral.sh/uv/).
 uv sync                       # runtime deps
 uv sync --extra dev           # + pytest, ruff, mypy
 
-uv run naija-asr-bench                  # Hausa
-uv run naija-asr-bench --lang yo        # Yorùbá, Igbo, English
-uv run naija-asr-bench --help
+uv run naija-asr-benchmark                  # Hausa
+uv run naija-asr-benchmark --lang yo        # Yorùbá, Igbo, English
+uv run naija-asr-benchmark --help
 ```
 
 On a slow connection, raise the fetch deadline:
 
 ```bash
-NAIJA_ASR_FETCH_TIMEOUT_S=1800 uv run naija-asr-bench --lang ha
+NAIJA_ASR_FETCH_TIMEOUT_S=1800 uv run naija-asr-benchmark --lang ha
 ```
 
 ### What it does
@@ -193,7 +193,7 @@ permits" more valuable than when it was written.
 ```
 pyproject.toml              deps, ruff, mypy and pytest config — single source
 uv.lock                     locked environment
-src/naija_asr_bench/
+src/naija_asr_benchmark/
   cli.py                    argparse, orchestration, exit codes
   fleurs.py                 config resolution + the bounded fetch + dataclasses
   asr.py                    transcription

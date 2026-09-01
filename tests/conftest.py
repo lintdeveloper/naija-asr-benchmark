@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from naija_asr_bench.fleurs import AudioClip, Utterance
+from naija_asr_benchmark.fleurs import AudioClip, Utterance
 
 
 @pytest.fixture

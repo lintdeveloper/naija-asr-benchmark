@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from naija_asr_bench.errors import SmokeError
-from naija_asr_bench.fleurs import LANGUAGE_CONFIGS, resolve_config
+from naija_asr_benchmark.errors import SmokeError
+from naija_asr_benchmark.fleurs import LANGUAGE_CONFIGS, resolve_config
 
 
 @pytest.mark.parametrize(("language", "expected"), sorted(LANGUAGE_CONFIGS.items()))

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from naija_asr_bench import cli
+from naija_asr_benchmark import cli
 
 
 def test_help_does_not_import_the_heavy_stack(capsys: pytest.CaptureFixture[str]) -> None:
@@ -22,7 +22,7 @@ def test_rejects_an_unsupported_language(capsys: pytest.CaptureFixture[str]) -> 
 
 
 def test_reports_a_smoke_error_as_exit_1(monkeypatch: pytest.MonkeyPatch) -> None:
-    from naija_asr_bench.errors import SmokeError
+    from naija_asr_benchmark.errors import SmokeError
 
     def boom(_args: object) -> None:
         raise SmokeError("no reachable dataset", "check the network")

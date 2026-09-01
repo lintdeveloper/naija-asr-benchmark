@@ -18,8 +18,8 @@ from typing import Any
 import numpy as np
 import pytest
 
-from naija_asr_bench import fleurs
-from naija_asr_bench.errors import SmokeError
+from naija_asr_benchmark import fleurs
+from naija_asr_benchmark.errors import SmokeError
 
 
 def _row(index: int) -> dict[str, Any]:
