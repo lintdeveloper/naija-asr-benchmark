@@ -115,6 +115,8 @@ def persist(result: Run, directory: Path = Path("results")) -> Path:
                 "clips": result.score.count,
                 "reference_words": result.score.reference_words,
                 "empty_hypotheses": result.score.empty_hypotheses,
+                "degenerate_hypotheses": result.score.degenerate_hypotheses,
+                "cer_excluding_degenerate": result.score.cer_excluding_degenerate,
                 "wer": result.score.wer,
                 "cer": result.score.cer,
                 "seconds": result.seconds,
@@ -130,6 +132,7 @@ def persist(result: Run, directory: Path = Path("results")) -> Path:
                         "insertions": u.insertions,
                         "hits": u.hits,
                         "latency_s": round(u.latency_s, 3),
+                        "degenerate": u.degenerate,
                     }
                     for u in result.score.utterances
                 ],

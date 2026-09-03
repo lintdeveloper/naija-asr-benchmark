@@ -165,6 +165,11 @@ def run_evaluate(args: argparse.Namespace) -> None:
     console.detail("WER", f"{s.wer * 100:.1f}%   (raw — no normalisation)")
     console.detail("CER", f"{s.cer * 100:.1f}%")
     console.detail("empty", f"{s.empty_hypotheses} blank hypotheses")
+    if s.degenerate_hypotheses:
+        excl = s.cer_excluding_degenerate
+        console.detail("degenerate", f"{s.degenerate_hypotheses} repetition collapses")
+        if excl is not None:
+            console.detail("CER excl.", f"{excl * 100:.1f}%   (collapses removed)")
     console.detail("elapsed", f"{outcome.seconds:.1f}s for {s.count} clips")
 
     if not args.no_save:
@@ -175,10 +180,28 @@ def run_evaluate(args: argparse.Namespace) -> None:
     console.block(
         f"Milestone 1 is complete when a single WER number exists. The plan expects "
         f"80-100% on {args.lang} with a tiny model, so {s.wer * 100:.0f}% is the expected "
-        "outcome and not a problem to fix. CER below WER means the model is hearing the "
-        "phonetics and writing them in the wrong orthography.",
+        "outcome and not a problem to fix.",
         "  ",
     )
+    # Describe what this run actually shows. An earlier version asserted "CER
+    # below WER means the model heard the phonetics and misspelled them", which
+    # was true of the single clip it was written from and false of the first
+    # five-clip run, where one repetition collapse pushed corpus CER to 108%.
+    if s.cer > s.wer:
+        print()
+        console.block(
+            "CER above WER here, which is the opposite of the usual pattern: at least one "
+            "hypothesis is far longer than its reference. Check the `degenerate` flags in "
+            "the saved JSON before reading the corpus CER as a quality signal.",
+            "  ",
+        )
+    elif s.cer < s.wer:
+        print()
+        console.block(
+            "CER below WER: the model is closer at character level than at word level, "
+            "which is what an orthographic rather than acoustic failure looks like.",
+            "  ",
+        )
 
 
 def main(argv: list[str] | None = None) -> int:

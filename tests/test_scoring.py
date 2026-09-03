@@ -61,3 +61,36 @@ def test_all_blank_references_is_an_error_not_a_zero() -> None:
 def test_latencies_are_attached_per_utterance() -> None:
     s = score([("a b", "a b"), ("c d", "c d")], [1.5, 2.5])
     assert [u.latency_s for u in s.utterances] == [1.5, 2.5]
+
+
+def test_a_repetition_collapse_is_flagged() -> None:
+    # whisper-tiny returned 444 characters of "1,2,1,0,1,0,..." against a
+    # 56-character Hausa reference containing 802.11n / 2.4ghz / 5.0ghz.
+    ref = "kwatancin 802.11n na aiki duk akan mita 2.4ghz da 5.0ghz"
+    s = score([(ref, "1,2,1,0," + "0," * 200)])
+    assert s.utterances[0].degenerate is True
+    assert s.degenerate_hypotheses == 1
+
+
+def test_ordinary_misspelling_is_not_flagged_as_degenerate() -> None:
+    # The orthographic failure mode keeps roughly the reference length.
+    s = score([("ginshiki mai walkiya", "deginshiki mei valkiya")])
+    assert s.utterances[0].degenerate is False
+    assert s.degenerate_hypotheses == 0
+
+
+def test_cer_excluding_collapses_is_reported_alongside_not_instead() -> None:
+    # One collapse took corpus CER from ~38% to 108% on the first real run.
+    # Both figures must survive: the full one says what the model does, the
+    # filtered one says what it does when it does not collapse.
+    ref = "kwatancin 802.11n na aiki duk akan mita"
+    s = score([(ref, "1,2," + "0," * 200), ("an kwatanta faretin", "an kwatanta ferretun")])
+    assert s.cer > 1.0, "the collapse must still show in the headline figure"
+    excluded = s.cer_excluding_degenerate
+    assert excluded is not None and excluded < s.cer
+
+
+def test_no_filtered_figure_when_nothing_was_excluded() -> None:
+    # Returning a number identical to the headline would imply a filter ran.
+    s = score([("a b c", "a x c")])
+    assert s.cer_excluding_degenerate is None

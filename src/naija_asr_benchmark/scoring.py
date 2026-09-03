@@ -34,6 +34,19 @@ class Utterance:
     def reference_words(self) -> int:
         return self.substitutions + self.deletions + self.hits
 
+    @property
+    def degenerate(self) -> bool:
+        """A hypothesis far longer than its reference — a repetition collapse.
+
+        whisper-tiny does this on numeral-heavy Hausa: one clip returned 444
+        characters of `1,2,1,0,1,0,...` against a 56-character reference, for a
+        CER of 787%. Left unflagged, a single such clip pushes corpus CER above
+        100% and buries the orthographic signal in the other clips (30-48%).
+
+        Threshold is 3x, which is generous — normal misspelling stays near 1x.
+        """
+        return len(self.hypothesis) > 3 * max(1, len(self.reference))
+
 
 @dataclass(frozen=True, slots=True)
 class Score:
@@ -57,6 +70,25 @@ class Score:
     @property
     def reference_words(self) -> int:
         return sum(u.reference_words for u in self.utterances)
+
+    @property
+    def degenerate_hypotheses(self) -> int:
+        """Clips where the model collapsed into repetition. These dominate CER."""
+        return sum(1 for u in self.utterances if u.degenerate)
+
+    @property
+    def cer_excluding_degenerate(self) -> float | None:
+        """Corpus CER with repetition collapses removed.
+
+        Reported ALONGSIDE the full figure, never instead of it — dropping
+        inconvenient utterances silently is how a benchmark becomes an opinion.
+        The full number says what the model does; this one says what it does
+        when it does not collapse, and the gap between them is itself a result.
+        """
+        kept = [u for u in self.utterances if not u.degenerate]
+        if not kept or len(kept) == len(self.utterances):
+            return None
+        return jiwer.cer([u.reference for u in kept], [u.hypothesis for u in kept])
 
     @property
     def empty_hypotheses(self) -> int:
