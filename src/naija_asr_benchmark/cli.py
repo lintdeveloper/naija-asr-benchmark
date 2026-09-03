@@ -1,11 +1,10 @@
-"""Milestone 0 — the environment smoke test.
+"""Command line entry point.
 
-Proves the toolchain works end to end: resolve a FLEURS config, read samples,
-run one clip through whisper-tiny, print the hypothesis beside the reference.
+    naija-asr-benchmark smoke      Milestone 0 -- does the toolchain work at all
+    naija-asr-benchmark evaluate   Milestone 1 -- N clips, one model, one WER
 
-This is NOT a quality measurement. whisper-tiny on Hausa produces something
-close to nonsense, and that is the correct outcome — any Hausa-ish text beside a
-reference means the milestone is done. Do not tune anything here.
+Neither is a quality measurement. The plan expects 80-100% WER on Hausa with a
+tiny model; a good score would mean something is wrong, not right.
 """
 
 from __future__ import annotations
@@ -13,7 +12,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from . import __version__, asr, console, environment, fleurs
+from . import __version__, asr, console, environment, evaluate, fleurs
 from .errors import SmokeError
 
 SAMPLE_COUNT = 5
@@ -22,27 +21,43 @@ SAMPLE_COUNT = 5
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="naija-asr-benchmark",
-        description="Milestone 0 smoke test for Nigerian-language ASR evaluation.",
-    )
-    parser.add_argument(
-        "--lang",
-        default="ha",
-        choices=sorted(fleurs.LANGUAGE_CONFIGS),
-        help="language to probe (default: ha)",
-    )
-    parser.add_argument(
-        "--model",
-        default=asr.DEFAULT_MODEL,
-        help=f"ASR checkpoint (default: {asr.DEFAULT_MODEL})",
-    )
-    parser.add_argument(
-        "--timeout",
-        type=int,
-        default=fleurs.DEFAULT_FETCH_TIMEOUT_S,
-        metavar="SECONDS",
-        help="deadline for the dataset fetch (default: %(default)s)",
+        description="Nigerian-language ASR evaluation under real deployment conditions.",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    def shared(p: argparse.ArgumentParser) -> None:
+        p.add_argument(
+            "--lang",
+            default="ha",
+            choices=sorted(fleurs.LANGUAGE_CONFIGS),
+            help="language to evaluate (default: ha)",
+        )
+        p.add_argument(
+            "--model",
+            default=asr.DEFAULT_MODEL,
+            help=f"ASR checkpoint (default: {asr.DEFAULT_MODEL})",
+        )
+        p.add_argument(
+            "--timeout",
+            type=int,
+            default=fleurs.DEFAULT_FETCH_TIMEOUT_S,
+            metavar="SECONDS",
+            help="deadline for the dataset fetch (default: %(default)s)",
+        )
+
+    smoke = sub.add_parser("smoke", help="Milestone 0 — prove the toolchain works")
+    shared(smoke)
+
+    ev = sub.add_parser("evaluate", help="Milestone 1 — N clips, one model, one WER")
+    shared(ev)
+    ev.add_argument(
+        "--clips", type=int, default=20, metavar="N", help="clips to score (default: 20)"
+    )
+    ev.add_argument(
+        "--no-save", action="store_true", help="do not write a JSON result to results/"
+    )
+
     return parser.parse_args(argv)
 
 
@@ -87,7 +102,7 @@ def _report_transcription(result: asr.Transcription, model: str) -> None:
     console.block(result.hypothesis or "<empty>")
 
 
-def run(args: argparse.Namespace) -> None:
+def run_smoke(args: argparse.Namespace) -> None:
     device = _report_environment()
     config = _report_config(args.lang)
 
@@ -113,10 +128,56 @@ def run(args: argparse.Namespace) -> None:
     )
 
 
+def run_evaluate(args: argparse.Namespace) -> None:
+    device = _report_environment()
+    config = _report_config(args.lang)
+
+    console.rule(f"3. Scoring {args.clips} clips — {args.model} on {config}")
+    print(f"  fetching {args.clips} clips …")
+
+    def progress(done: int, total: int, result: asr.Transcription) -> None:
+        preview = (result.hypothesis or "<empty>").replace("\n", " ")[:44]
+        print(f"    [{done:>3}/{total}]  {preview}")
+
+    outcome = evaluate.run(
+        args.lang,
+        clips=args.clips,
+        model=args.model,
+        device=device,
+        timeout_s=args.timeout,
+        on_clip=progress,
+    )
+    s = outcome.score
+
+    console.rule("4. Result")
+    console.detail("clips", str(s.count))
+    console.detail("ref words", str(s.reference_words))
+    console.detail("WER", f"{s.wer * 100:.1f}%   (raw — no normalisation)")
+    console.detail("CER", f"{s.cer * 100:.1f}%")
+    console.detail("empty", f"{s.empty_hypotheses} blank hypotheses")
+    console.detail("elapsed", f"{outcome.seconds:.1f}s for {s.count} clips")
+
+    if not args.no_save:
+        path = evaluate.persist(outcome)
+        console.detail("saved", str(path))
+
+    console.rule("Done")
+    console.block(
+        f"Milestone 1 is complete when a single WER number exists. The plan expects "
+        f"80-100% on {args.lang} with a tiny model, so {s.wer * 100:.0f}% is the expected "
+        "outcome and not a problem to fix. CER below WER means the model is hearing the "
+        "phonetics and writing them in the wrong orthography.",
+        "  ",
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     try:
-        run(args)
+        if args.command == "evaluate":
+            run_evaluate(args)
+        else:
+            run_smoke(args)
     except SmokeError as exc:
         print(f"\n  ✗ {exc}", file=sys.stderr)
         if exc.hint:

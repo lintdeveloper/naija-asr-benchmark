@@ -14,7 +14,7 @@ document if you would rather read it that way.
 no fine-tuning, no novel architecture — it calls existing public models and computes standard error
 metrics under acoustic conditions no public leaderboard measures.
 
-**Status: Milestone 0 complete (2026-08-27).** Toolchain verified, FLEURS configs resolved, first
+**Status: Milestone 1 in progress.** Milestone 0 complete 2026-08-27. Toolchain verified, FLEURS configs resolved, first
 zero-shot baselines recorded below. Re-verified end to end on 2026-08-28 after the package
 restructure: the same Hausa clip produces a byte-identical hypothesis, so the restructure is
 behaviour-preserving.
@@ -102,11 +102,22 @@ Requires [uv](https://docs.astral.sh/uv/).
 ```bash
 uv sync                       # runtime deps
 uv sync --extra dev           # + pytest, ruff, mypy
-
-uv run naija-asr-benchmark                  # Hausa
-uv run naija-asr-benchmark --lang yo        # Yorùbá, Igbo, English
-uv run naija-asr-benchmark --help
 ```
+
+Two commands, one per milestone:
+
+```bash
+# Milestone 0 — does the toolchain work at all
+uv run naija-asr-benchmark smoke --lang ha
+
+# Milestone 1 — N clips, one model, one WER number
+uv run naija-asr-benchmark evaluate --lang ha --clips 20
+```
+
+`--lang ha|yo|ig|en`, `--model <hf-checkpoint>`, `--clips N`, `--no-save`. Results are written to
+`results/` as JSON including every utterance — Milestone 4 hand-categorises ~400 errors, and
+re-running inference to recover them would be wasteful. `results/` is gitignored; those are
+artifacts, not source.
 
 On a slow connection, raise the fetch deadline:
 
