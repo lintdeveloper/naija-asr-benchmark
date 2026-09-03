@@ -108,4 +108,6 @@ def test_persist_writes_every_utterance_and_says_normalisation_is_none(
     assert saved["utterances"][0]["reference"] and saved["utterances"][0]["hypothesis"]
     # A number without its normalisation is not interpretable (§5.3).
     assert "none" in saved["normalisation"]
+    # Long-audio handling changes the number too, so it is recorded alongside.
+    assert "sequential" in saved["long_form"]
     assert saved["fleurs_config"] == "ha_ng"

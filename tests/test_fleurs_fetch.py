@@ -32,19 +32,19 @@ def _row(index: int) -> dict[str, Any]:
 
 
 # Module-level so `spawn` can pickle them by reference.
-def _worker_ok(_config: str, count: int, sink: Any) -> None:
+def _worker_ok(_config: str, count: int, _streaming: bool, sink: Any) -> None:
     sink.put(("ok", [_row(i) for i in range(count)]))
 
 
-def _worker_error(_config: str, _count: int, sink: Any) -> None:
+def _worker_error(_config: str, _count: int, _streaming: bool, sink: Any) -> None:
     sink.put(("error", "OSError: libsndfile not found"))
 
 
-def _worker_empty(_config: str, _count: int, sink: Any) -> None:
+def _worker_empty(_config: str, _count: int, _streaming: bool, sink: Any) -> None:
     sink.put(("ok", []))
 
 
-def _worker_silent(_config: str, _count: int, _sink: Any) -> None:
+def _worker_silent(_config: str, _count: int, _streaming: bool, _sink: Any) -> None:
     # Never puts anything: stands in for a fetch that blocks unkillably.
     import time
 

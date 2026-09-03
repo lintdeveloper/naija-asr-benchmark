@@ -30,6 +30,7 @@ class Run:
     score: scoring.Score
     seconds: float
     started_at: str
+    streaming: bool = False
 
 
 def run(
@@ -39,12 +40,19 @@ def run(
     model: str = asr.DEFAULT_MODEL,
     device: str = "cpu",
     timeout_s: int = fleurs.DEFAULT_FETCH_TIMEOUT_S,
+    streaming: bool = False,
     on_clip: Any | None = None,
 ) -> Run:
-    """Fetch, transcribe and score. `on_clip(i, total, transcription)` reports progress."""
+    """Fetch, transcribe and score. `on_clip(i, total, transcription)` reports progress.
+
+    `streaming` defaults to False: the split is downloaded and cached once so
+    repeated runs are fast and, more importantly, reproducible. Streaming a
+    770 MB parquet to read twenty clips fails on a flaky link and makes the
+    result depend on the network.
+    """
     started = datetime.now(UTC).isoformat(timespec="seconds")
     config = fleurs.resolve_config(language)
-    utterances = fleurs.fetch_samples(config, clips, timeout_s=timeout_s)
+    utterances = fleurs.fetch_samples(config, clips, timeout_s=timeout_s, streaming=streaming)
 
     engine = asr.load(model, device)
     pairs: list[tuple[str, str]] = []
@@ -76,6 +84,7 @@ def run(
         score=result_score,
         seconds=elapsed,
         started_at=started,
+        streaming=streaming,
     )
 
 
@@ -98,6 +107,11 @@ def persist(result: Run, directory: Path = Path("results")) -> Path:
                 "fleurs_config": result.config,
                 "model": result.model,
                 "normalisation": "none (raw) — Milestone 1 scores text as produced",
+                # How long audio was handled is a methodological choice, not a
+                # detail: chunking would introduce boundary errors into a number
+                # meant to measure the model.
+                "long_form": "sequential (return_timestamps=True), not chunked",
+                "source": "cached local split" if not result.streaming else "streamed",
                 "clips": result.score.count,
                 "reference_words": result.score.reference_words,
                 "empty_hypotheses": result.score.empty_hypotheses,

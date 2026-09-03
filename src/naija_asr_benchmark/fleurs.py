@@ -86,14 +86,24 @@ def resolve_config(language: str, *, configs: list[str] | None = None) -> str:
     )
 
 
-def _fetch_worker(config: str, count: int, sink: MPQueue[Any]) -> None:  # pragma: no cover
+def _fetch_worker(  # pragma: no cover
+    config: str, count: int, streaming: bool, sink: MPQueue[Any]
+) -> None:
     """Runs in a child process. See `fetch_samples` for why it is a child."""
     try:
         from datasets import load_dataset
 
-        stream = load_dataset(DATASET, config, split="test", streaming=True)
+        if streaming:
+            source: Any = load_dataset(DATASET, config, split="test", streaming=True)
+        else:
+            # Downloads and caches the split, so every later run reads from disk.
+            # Slow once, then repeatable — which a benchmark needs regardless of
+            # the network.
+            full = load_dataset(DATASET, config, split="test")
+            source = full.select(range(min(count, len(full))))
+
         rows: list[dict[str, Any]] = []
-        for index, row in enumerate(stream):
+        for index, row in enumerate(source):
             if index >= count:
                 break
             audio = row.get("audio") or {}
@@ -120,12 +130,24 @@ def fetch_samples(
     count: int = 5,
     *,
     timeout_s: int = DEFAULT_FETCH_TIMEOUT_S,
+    streaming: bool = True,
 ) -> list[Utterance]:
     """Stream the first `count` test rows, bounded by a wall-clock deadline.
 
-    Streaming avoids a multi-gigabyte download. The **child process** is about
-    something else: a HuggingFace fetch can block in a way that cannot be
-    interrupted from inside Python. A probe with `signal.alarm(90)` ran past 330
+    `streaming=True` reads a handful of rows without downloading the whole split,
+    which is what the Milestone 0 smoke test wants. **It is the wrong default for
+    evaluation.** The Hausa test parquet is 770 MB and streaming re-fetches it on
+    every run, so on a slow or flaky link a twenty-clip run can fail repeatedly
+    without ever scoring anything — observed three times in a row. Worse, a
+    benchmark whose numbers depend on the network is not reproducible.
+
+    `streaming=False` downloads and caches the split once, then every later run
+    reads from disk. Slow once, then fast and repeatable. The plan says as much:
+    Milestone 1 switches to a local copy.
+
+    The **child process** is about something else: a HuggingFace fetch can block
+    in a way that cannot be interrupted from inside Python. A probe with `signal.alarm(90)`
+    ran past 330
     seconds and needed SIGTERM from outside, because the block sits below the
     level at which Python delivers signals.
 
@@ -135,7 +157,9 @@ def fetch_samples(
     """
     context = mp.get_context("spawn")
     sink: MPQueue[Any] = context.Queue()
-    child = context.Process(target=_fetch_worker, args=(config, count, sink), daemon=True)
+    child = context.Process(
+        target=_fetch_worker, args=(config, count, streaming, sink), daemon=True
+    )
     child.start()
 
     # Read BEFORE joining. Joining first deadlocks: five FLEURS rows are several
@@ -151,6 +175,8 @@ def fetch_samples(
         raise SmokeError(
             f"the {config!r} split produced no sample within {timeout_s}s",
             "The config name resolved, so this is data access rather than a typo. "
+            f"The {config} test split is several hundred megabytes; a first "
+            "non-streaming run has to download all of it. "
             "On a slow connection raise it: NAIJA_ASR_FETCH_TIMEOUT_S=1800. If it "
             "never returns the split may be unavailable — but a flaky CDN looks "
             "identical, so confirm another language fetches before concluding that.",

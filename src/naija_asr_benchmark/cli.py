@@ -57,6 +57,11 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     ev.add_argument(
         "--no-save", action="store_true", help="do not write a JSON result to results/"
     )
+    ev.add_argument(
+        "--streaming",
+        action="store_true",
+        help="stream instead of caching the split — faster to start, not reproducible",
+    )
 
     return parser.parse_args(argv)
 
@@ -133,7 +138,11 @@ def run_evaluate(args: argparse.Namespace) -> None:
     config = _report_config(args.lang)
 
     console.rule(f"3. Scoring {args.clips} clips — {args.model} on {config}")
-    print(f"  fetching {args.clips} clips …")
+    if args.streaming:
+        print(f"  streaming {args.clips} clips (not reproducible) …")
+    else:
+        print(f"  reading {args.clips} clips from the cached split …")
+        print("  a first run downloads it in full — several hundred MB per language")
 
     def progress(done: int, total: int, result: asr.Transcription) -> None:
         preview = (result.hypothesis or "<empty>").replace("\n", " ")[:44]
@@ -145,6 +154,7 @@ def run_evaluate(args: argparse.Namespace) -> None:
         model=args.model,
         device=device,
         timeout_s=args.timeout,
+        streaming=args.streaming,
         on_clip=progress,
     )
     s = outcome.score

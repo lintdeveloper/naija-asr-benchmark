@@ -66,13 +66,25 @@ def transcribe(
             "sampling_rate": utterance.audio.sampling_rate,
         }
 
+    # `return_timestamps=True` is not cosmetic: Whisper's encoder takes 30s of
+    # audio, and anything longer switches to long-form generation, which REFUSES
+    # to run without timestamp prediction. FLEURS contains such clips — one
+    # appeared at index 13 of the Hausa test split — and without this the run
+    # dies partway with a message about mel features.
+    #
+    # Sequential long-form rather than chunking (`chunk_length_s`), because
+    # chunking splits mid-utterance and stitches the pieces, which introduces
+    # boundary errors into a number meant to measure the model. It is slower and
+    # it is the model's own handling.
+    forcing = {"language": language, "task": "transcribe", "return_timestamps": True}
+
     # Forcing the language stops Whisper guessing. Not every checkpoint accepts
     # every code, so fall back to auto-detect rather than failing the run.
     try:
-        result = asr(payload(), generate_kwargs={"language": language, "task": "transcribe"})
+        result = asr(payload(), generate_kwargs=forcing)
         forced = True
     except (ValueError, KeyError):
-        result = asr(payload())
+        result = asr(payload(), generate_kwargs={"return_timestamps": True})
         forced = False
 
     return Transcription(

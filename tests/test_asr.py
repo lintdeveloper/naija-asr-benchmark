@@ -27,6 +27,23 @@ def utterance() -> Utterance:
     )
 
 
+class LongFormPipeline:
+    """Mimics Whisper refusing >30s audio unless timestamps are requested."""
+
+    def __init__(self) -> None:
+        self.saw_timestamps: list[bool] = []
+
+    def __call__(self, inputs: dict[str, Any], **kwargs: Any) -> dict[str, str]:
+        wants = bool(kwargs.get("generate_kwargs", {}).get("return_timestamps"))
+        self.saw_timestamps.append(wants)
+        if not wants:
+            raise ValueError(
+                "You have passed more than 3000 mel input features (> 30 seconds) "
+                "which automatically enables long-form generation"
+            )
+        return {"text": "long form transcript"}
+
+
 class MutatingPipeline:
     """Mimics transformers: pops the keys, and rejects a dict already drained."""
 
@@ -40,7 +57,10 @@ class MutatingPipeline:
             raise ValueError('the dict needs to contain a "raw" key')
         inputs.pop("array", None)
         inputs.pop("sampling_rate", None)
-        if self.fail_forced and "generate_kwargs" in kwargs:
+        # Key on `language`, not on generate_kwargs being present: the fallback
+        # also passes generate_kwargs now (return_timestamps), and a stub that
+        # rejected both would make the fallback untestable.
+        if self.fail_forced and "language" in kwargs.get("generate_kwargs", {}):
             raise ValueError("this checkpoint does not accept that language code")
         return {"text": " hypothesis "}
 
@@ -91,3 +111,32 @@ def test_reads_the_transcript_out_of_either_shape(
             return returned
 
     assert asr.transcribe(utterance, "ha", asr=Fixed(fail_forced=False)).hypothesis == expected
+
+
+def test_a_clip_over_30_seconds_still_transcribes(utterance: Utterance) -> None:
+    # Whisper switches to long-form generation past 30s and refuses to run
+    # without timestamp prediction. FLEURS has such clips — index 13 of the
+    # Hausa test split — and a run without this died partway through.
+    engine = LongFormPipeline()
+    out = asr.transcribe(utterance, "ha", asr=engine)
+    assert out.hypothesis == "long form transcript"
+    assert engine.saw_timestamps == [True], "timestamps must be requested on the FIRST attempt"
+
+
+def test_the_auto_detect_fallback_also_requests_timestamps(utterance: Utterance) -> None:
+    # Otherwise a long clip whose language code is rejected fails on the retry
+    # for a completely different reason than the one that triggered it.
+    calls: list[dict[str, Any]] = []
+
+    class RejectsLanguage(LongFormPipeline):
+        def __call__(self, inputs: dict[str, Any], **kwargs: Any) -> dict[str, str]:
+            gk = kwargs.get("generate_kwargs", {})
+            calls.append(dict(gk))
+            if "language" in gk:
+                raise ValueError("unsupported language code")
+            return super().__call__(inputs, **kwargs)
+
+    out = asr.transcribe(utterance, "ha", asr=RejectsLanguage())
+    assert out.language_forced is False
+    assert len(calls) == 2
+    assert calls[1].get("return_timestamps") is True
