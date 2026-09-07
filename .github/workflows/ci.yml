@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      # Pinned to the requires-python floor rather than "latest": the harness
+      # claims >=3.11, so that is what has to keep working. A newer interpreter
+      # passing tells you nothing about the version people will install with.
+      - run: uv python install 3.11
+      - run: uv sync --extra dev --frozen
+
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy
+
+      # No network in CI. Every test is deliberately network-free — FLEURS
+      # streaming leaves no local cache to replay and a flaky CDN produces false
+      # failures, so the fetch path is tested with synthetic fixtures. If a test
+      # ever starts needing the hub, it belongs behind a marker, not here.
+      - run: uv run pytest -q
