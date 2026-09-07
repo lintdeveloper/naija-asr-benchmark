@@ -31,6 +31,7 @@ class Run:
     seconds: float
     started_at: str
     streaming: bool = False
+    data_file: Path | None = None
 
 
 def run(
@@ -41,6 +42,7 @@ def run(
     device: str = "cpu",
     timeout_s: int = fleurs.DEFAULT_FETCH_TIMEOUT_S,
     streaming: bool = False,
+    data_file: Path | None = None,
     on_clip: Any | None = None,
 ) -> Run:
     """Fetch, transcribe and score. `on_clip(i, total, transcription)` reports progress.
@@ -85,6 +87,7 @@ def run(
         seconds=elapsed,
         started_at=started,
         streaming=streaming,
+        data_file=data_file,
     )
 
 
@@ -111,12 +114,18 @@ def persist(result: Run, directory: Path = Path("results")) -> Path:
                 # detail: chunking would introduce boundary errors into a number
                 # meant to measure the model.
                 "long_form": "sequential (return_timestamps=True), not chunked",
-                "source": "cached local split" if not result.streaming else "streamed",
+                "source": (
+                    f"local parquet: {result.data_file.name}"
+                    if result.data_file
+                    else ("streamed" if result.streaming else "cached hub split")
+                ),
                 "clips": result.score.count,
                 "reference_words": result.score.reference_words,
                 "empty_hypotheses": result.score.empty_hypotheses,
                 "degenerate_hypotheses": result.score.degenerate_hypotheses,
                 "cer_excluding_degenerate": result.score.cer_excluding_degenerate,
+                "wer_excluding_degenerate": result.score.wer_excluding_degenerate,
+                "collapse_rate": result.score.collapse_rate,
                 "wer": result.score.wer,
                 "cer": result.score.cer,
                 "seconds": result.seconds,

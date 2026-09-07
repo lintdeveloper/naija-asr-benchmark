@@ -76,15 +76,21 @@ def transcribe(
     # chunking splits mid-utterance and stitches the pieces, which introduces
     # boundary errors into a number meant to measure the model. It is slower and
     # it is the model's own handling.
-    forcing = {"language": language, "task": "transcribe", "return_timestamps": True}
-
-    # Forcing the language stops Whisper guessing. Not every checkpoint accepts
-    # every code, so fall back to auto-detect rather than failing the run.
+    # `return_timestamps` is a PIPELINE parameter, not a generate_kwargs key —
+    # `AutomaticSpeechRecognitionPipeline.__call__` takes it directly and
+    # validates it before the forward pass. Passing it inside generate_kwargs
+    # looks right, type-checks, and does nothing: the >30s clip still failed
+    # with "Please either pass return_timestamps=True", which is a confusing
+    # message to read when you believe you just did.
     try:
-        result = asr(payload(), generate_kwargs=forcing)
+        result = asr(
+            payload(),
+            return_timestamps=True,
+            generate_kwargs={"language": language, "task": "transcribe"},
+        )
         forced = True
     except (ValueError, KeyError):
-        result = asr(payload(), generate_kwargs={"return_timestamps": True})
+        result = asr(payload(), return_timestamps=True)
         forced = False
 
     return Transcription(

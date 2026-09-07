@@ -14,84 +14,52 @@ document if you would rather read it that way.
 no fine-tuning, no novel architecture — it calls existing public models and computes standard error
 metrics under acoustic conditions no public leaderboard measures.
 
-**Status: Milestone 1 in progress.** Milestone 0 complete 2026-08-27. Toolchain verified, FLEURS configs resolved, first
-zero-shot baselines recorded below. Re-verified end to end on 2026-08-28 after the package
-restructure: the same Hausa clip produces a byte-identical hypothesis, so the restructure is
-behaviour-preserving.
+**Status: Milestone 1 complete (2026-09-07).** Milestone 0 complete 2026-08-27.
 
----
+## Milestone 1 — results
 
-## Milestone 0 — results
+`whisper-tiny`, Hausa, 20 clips from a local FLEURS copy, raw text (no normalisation):
 
-Ran 2026-08-27 on an M-series Mac, CPU, `datasets` 3.6 / `transformers` 4.57 / `torch` 2.13.
+| | |
+|---|---:|
+| clips | 20 |
+| reference words | 460 |
+| **WER** | **436.1%** |
+| **CER** | **316.3%** |
+| repetition collapses | **7 of 20 (35%)** |
+| WER excluding collapses | 106.9% |
+| CER excluding collapses | 46.6% |
 
-**FLEURS config names — resolved, no longer guesses:**
+### The collapse rate is the result
 
-| Language | Config | Status |
-|---|---|---|
-| Hausa | `ha_ng` | confirmed — the plan listed this as an unverified guess |
-| Yorùbá | `yo_ng` | confirmed |
-| English | `en_us` | confirmed |
-| Igbo | `ig_ng` | confirmed; the split did **not fetch here** — cause not isolated, see below |
+Corpus WER above 100% does not mean every word is wrong — it means insertions
+dwarf the references. **`whisper-tiny` collapsed into repetition loops on 7 of 20
+Hausa clips**, emitting hypotheses many times longer than the reference. One
+returned 444 characters of `1,2,1,0,1,0,…` against a 56-character reference.
 
-PazaBench check: **done**, see below — it covers Hausa, Yorùbá and Igbo on FLEURS, but has no
-acoustic-degradation axis, so the contribution here is unaffected.
+So the headline figures are not quality measurements, and the harness says so
+rather than printing them unqualified. On the 13 clips it did not collapse on:
+**WER 106.9%, CER 46.6%** — a WER at the edge of what the plan predicts for a
+39M-parameter model, and a CER far below it, which is the orthographic signature:
+the model hearing Hausa and spelling it in English.
 
-All four config names are therefore confirmed against the live config list (103 configs;
-`ig*` matches exactly `ig_ng`). The plan's guesses were all correct.
+Both figures are always reported together. Dropping inconvenient utterances
+quietly is how a benchmark becomes an opinion; the gap between them is itself a
+finding.
 
-**Igbo did not fetch here, and the cause is NOT isolated.** `--lang ig` ran over 25 minutes with
-no output and had to be killed, while `ha`, `yo` and `en` each completed in minutes. The obvious
-reading — that `ig_ng` is unavailable — **is not supported**, because a later Hausa run failed the
-same way:
+### What the collapse clip was
 
-```
-'HTTPSConnectionPool(host='us.aws.cdn.hf.co', port=443): Read timed out.'
-  … GET .../parquet-data/ha_ng/test-00000-of-00001.parquet
-Retrying in 1s [Retry 1/5].
-```
+Its reference: `kwatancin 802.11n na aiki duk akan mita 2.4ghz da 5.0ghz`. The
+**numeral-heavy** clip is the one that failed hardest, which is unlooked-for
+early support for §5.1's numeral-error thesis and for contribution 2 — on the
+first twenty-clip run, before any degradation was applied.
 
-Both `huggingface.co` and `us.aws.cdn.hf.co` answer a plain request in under 1.5s, so the hosts are
-reachable — it is the large parquet transfer that times out. **The network is a confound here, so
-the Igbo result carries no information about `ig_ng`** until it is re-run on a connection that
-reliably completes a Hausa fetch. It does not belong in §8 as a data-availability risk yet.
+### Caveats
 
-What it did establish is an engineering constraint, which is in the harness now: a fetch can block
-in a way that **`signal.alarm` cannot interrupt** — a probe with a 90s alarm ran past 330s and
-needed `SIGTERM` from outside. So the deadline must be enforced by a parent process watching a
-child, not by the work watching itself. `load_samples` does that, with a generous ceiling
-(`RESILIX_STREAM_TIMEOUT_S`, default 900s). Milestone 1 loops over four languages and several
-models, and without this one bad shard or one flaky minute hangs the whole run.
-
-**First zero-shot baselines, `openai/whisper-tiny`, one utterance per language:**
-
-| Language | WER | CER | Behaviour |
-|---|---:|---:|---|
-| English (control) | 5.3% | 1.0% | 18/19 words correct |
-| Hausa | 95.7% | 29.1% | phonetically close, orthographically English |
-| Yorùbá | ~100% | — | emitted CJK characters (`羽毛` repeated) — language-ID failure |
-
-### Read these numbers correctly
-
-**This is not a measurement of Hausa or Yorùbá ASR.** `whisper-tiny` is 39M parameters, the
-smallest model in the family, and this is a single utterance per language with no averaging. The
-plan is explicit that Milestone 0 tests plumbing, not quality. What the numbers support is the
-*shape* of the gap under one identical protocol — nothing about `whisper-large`, MMS, or any
-fine-tuned model.
-
-Two observations worth carrying into Milestone 1:
-
-**Hausa's error is orthographic, not acoustic.** 95.7% WER against 29.1% CER is a large split:
-the model hears the phonetics and renders them in English spelling — `ginshiƙi` → `deginshiki`,
-`walƙiya` → `valkiya`. That is the mechanism §2.2 predicts, appearing on the first utterance.
-
-**Yorùbá contradicts the §2.2 prediction, and the confound is model scale.** The plan expects
-Yorùbá to lead, since tone is orthographically marked and it scores best on SSA-COMET (57.0).
-Instead `whisper-tiny` fails hardest on it, switching script entirely rather than degrading. The
-likely reading is that at 39M parameters language identification dominates and swamps any tone
-effect. **The tone-orthography experiment therefore cannot be run at this model size** — it needs
-a size at which all four languages are at least identified. Record in §8 as a scale confound and
-choose Milestone 1's model floor accordingly.
+One model, one language, 20 clips, no normalisation, clean audio. The plan scopes
+Milestone 1 as plumbing rather than quality and expects 80–100% WER, so nothing
+here is a claim about Hausa ASR in general — only about this checkpoint on this
+sample.
 
 ---
 
@@ -114,7 +82,24 @@ uv run naija-asr-benchmark smoke --lang ha
 uv run naija-asr-benchmark evaluate --lang ha --clips 20
 ```
 
-`--lang ha|yo|ig|en`, `--model <hf-checkpoint>`, `--clips N`, `--no-save`. Results are written to
+`--lang ha|yo|ig|en`, `--model <hf-checkpoint>`, `--clips N`, `--no-save`,
+`--data-file <parquet>`.
+
+**Use `--data-file` for anything you intend to cite.** `huggingface_hub`'s downloader stalled
+repeatedly at 0 KB/s while plain HTTP to the same URL sustained 1.2 MB/s, and its resume logic
+truncated a 674 MB partial back to 494 MB and corrupted it. Fetching the parquet with an
+append-only range loop and pointing the harness at it worked first time:
+
+```bash
+curl -L -o data/ha_ng-test.parquet \
+  "https://huggingface.co/datasets/google/fleurs/resolve/main/parquet-data/ha_ng/test-00000-of-00001.parquet"
+
+uv run naija-asr-benchmark evaluate --lang ha --clips 20 --data-file data/ha_ng-test.parquet
+```
+
+It reads only the rows it needs with pyarrow and decodes them with soundfile.
+`load_dataset("parquet", …)` materialises the whole 734 MB into an Arrow cache before any
+`select()` applies, which timed out at 900 s for a twenty-clip run on a **local** file. Results are written to
 `results/` as JSON including every utterance — Milestone 4 hand-categorises ~400 errors, and
 re-running inference to recover them would be wasteful. `results/` is gitignored; those are
 artifacts, not source.

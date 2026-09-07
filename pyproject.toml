@@ -71,7 +71,10 @@ strict = true
 files = ["src", "tests"]
 # torch / transformers / datasets ship incomplete or absent stubs.
 [[tool.mypy.overrides]]
-module = ["datasets.*", "transformers.*", "torch.*", "librosa.*", "soundfile.*", "jiwer.*"]
+module = [
+  "datasets.*", "transformers.*", "torch.*", "librosa.*",
+  "soundfile.*", "jiwer.*", "pyarrow.*",
+]
 ignore_missing_imports = true
 
 # ── pytest ───────────────────────────────────────────────────────────────────

@@ -7,11 +7,16 @@ import os
 import queue as queue_mod
 from dataclasses import dataclass
 from multiprocessing.queues import Queue as MPQueue
+from pathlib import Path
 from typing import Any
 
 from .errors import SmokeError
 
 DATASET = "google/fleurs"
+
+# Only what the harness reads. FLEURS rows also carry `path`, `gender` and
+# `lang_id`; pulling them costs I/O for data nothing uses.
+COLUMNS = ["audio", "transcription", "raw_transcription", "num_samples"]
 
 # FLEURS uses {iso639-1}_{region} config names. All four were confirmed against
 # the live config list on 2026-08-27 (103 configs). `resolve_config` still checks
@@ -87,14 +92,44 @@ def resolve_config(language: str, *, configs: list[str] | None = None) -> str:
 
 
 def _fetch_worker(  # pragma: no cover
-    config: str, count: int, streaming: bool, sink: MPQueue[Any]
+    config: str, count: int, streaming: bool, data_file: str | None, sink: MPQueue[Any]
 ) -> None:
     """Runs in a child process. See `fetch_samples` for why it is a child."""
     try:
         from datasets import load_dataset
 
+        if data_file is not None:
+            # Read the parquet directly with pyarrow and decode only the rows we
+            # want. `load_dataset("parquet", ...)` materialises the WHOLE file
+            # into an Arrow cache before any select() applies — 734 MB of audio,
+            # which timed out at 900s for a twenty-clip run on a LOCAL file.
+            import io as _io
+
+            import pyarrow.parquet as _pq
+            import soundfile as _sf
+
+            reader = _pq.ParquetFile(data_file)
+            table = next(reader.iter_batches(batch_size=count, columns=COLUMNS))
+            local_rows: list[dict[str, Any]] = []
+            for row in table.to_pylist():
+                blob = (row.get("audio") or {}).get("bytes")
+                if not blob:
+                    continue
+                samples, rate = _sf.read(_io.BytesIO(blob), dtype="float32")
+                local_rows.append(
+                    {
+                        "samples": samples,
+                        "sampling_rate": rate,
+                        "transcription": (
+                            row.get("transcription") or row.get("raw_transcription") or ""
+                        ),
+                        "fields": tuple(sorted(row.keys())),
+                    }
+                )
+            sink.put(("ok", local_rows))
+            return
         if streaming:
-            source: Any = load_dataset(DATASET, config, split="test", streaming=True)
+            source = load_dataset(DATASET, config, split="test", streaming=True)
         else:
             # Downloads and caches the split, so every later run reads from disk.
             # Slow once, then repeatable — which a benchmark needs regardless of
@@ -131,6 +166,7 @@ def fetch_samples(
     *,
     timeout_s: int = DEFAULT_FETCH_TIMEOUT_S,
     streaming: bool = True,
+    data_file: Path | None = None,
 ) -> list[Utterance]:
     """Stream the first `count` test rows, bounded by a wall-clock deadline.
 
@@ -145,6 +181,15 @@ def fetch_samples(
     reads from disk. Slow once, then fast and repeatable. The plan says as much:
     Milestone 1 switches to a local copy.
 
+    `data_file` reads a parquet already on disk and skips the hub entirely. That
+    is not a convenience: `huggingface_hub`'s downloader stalled repeatedly at
+    0 KB/s while plain HTTP to the same URL sustained 1.2 MB/s, and its resume
+    logic truncated a partial file back from 674 MB to 494 MB, corrupting it.
+    Fetching the parquet with an append-only range loop and pointing the harness
+    at it took one attempt. It is also what Milestones 2 and 3 need, since they
+    re-score the same audio under seven acoustic conditions and cannot depend on
+    a network at all.
+
     The **child process** is about something else: a HuggingFace fetch can block
     in a way that cannot be interrupted from inside Python. A probe with `signal.alarm(90)`
     ran past 330
@@ -158,7 +203,9 @@ def fetch_samples(
     context = mp.get_context("spawn")
     sink: MPQueue[Any] = context.Queue()
     child = context.Process(
-        target=_fetch_worker, args=(config, count, streaming, sink), daemon=True
+        target=_fetch_worker,
+        args=(config, count, streaming, str(data_file) if data_file else None, sink),
+        daemon=True,
     )
     child.start()
 

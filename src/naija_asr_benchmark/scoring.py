@@ -77,6 +77,21 @@ class Score:
         return sum(1 for u in self.utterances if u.degenerate)
 
     @property
+    def wer_excluding_degenerate(self) -> float | None:
+        """Corpus WER with repetition collapses removed. See the CER twin."""
+        kept = [u for u in self.utterances if not u.degenerate]
+        if not kept or len(kept) == len(self.utterances):
+            return None
+        return float(
+            jiwer.process_words([u.reference for u in kept], [u.hypothesis for u in kept]).wer
+        )
+
+    @property
+    def collapse_rate(self) -> float:
+        """Share of clips the model collapsed on. A result in its own right."""
+        return self.degenerate_hypotheses / self.count if self.count else 0.0
+
+    @property
     def cer_excluding_degenerate(self) -> float | None:
         """Corpus CER with repetition collapses removed.
 

@@ -34,7 +34,8 @@ class LongFormPipeline:
         self.saw_timestamps: list[bool] = []
 
     def __call__(self, inputs: dict[str, Any], **kwargs: Any) -> dict[str, str]:
-        wants = bool(kwargs.get("generate_kwargs", {}).get("return_timestamps"))
+        # A PIPELINE kwarg, not a generate_kwargs key — see asr.transcribe.
+        wants = bool(kwargs.get("return_timestamps"))
         self.saw_timestamps.append(wants)
         if not wants:
             raise ValueError(
@@ -132,6 +133,7 @@ def test_the_auto_detect_fallback_also_requests_timestamps(utterance: Utterance)
         def __call__(self, inputs: dict[str, Any], **kwargs: Any) -> dict[str, str]:
             gk = kwargs.get("generate_kwargs", {})
             calls.append(dict(gk))
+            assert kwargs.get("return_timestamps") is True, "every attempt needs timestamps"
             if "language" in gk:
                 raise ValueError("unsupported language code")
             return super().__call__(inputs, **kwargs)
@@ -139,4 +141,4 @@ def test_the_auto_detect_fallback_also_requests_timestamps(utterance: Utterance)
     out = asr.transcribe(utterance, "ha", asr=RejectsLanguage())
     assert out.language_forced is False
     assert len(calls) == 2
-    assert calls[1].get("return_timestamps") is True
+    assert calls[1] == {}, "the retry drops the language but keeps timestamps"

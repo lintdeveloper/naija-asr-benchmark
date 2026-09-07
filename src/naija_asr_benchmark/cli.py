@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 
 from . import __version__, asr, console, environment, evaluate, fleurs
 from .errors import SmokeError
@@ -56,6 +57,12 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     )
     ev.add_argument(
         "--no-save", action="store_true", help="do not write a JSON result to results/"
+    )
+    ev.add_argument(
+        "--data-file",
+        type=Path,
+        metavar="PARQUET",
+        help="score from a parquet on disk — reproducible, and needs no network",
     )
     ev.add_argument(
         "--streaming",
@@ -138,7 +145,9 @@ def run_evaluate(args: argparse.Namespace) -> None:
     config = _report_config(args.lang)
 
     console.rule(f"3. Scoring {args.clips} clips — {args.model} on {config}")
-    if args.streaming:
+    if args.data_file:
+        print(f"  reading {args.clips} clips from {args.data_file}")
+    elif args.streaming:
         print(f"  streaming {args.clips} clips (not reproducible) …")
     else:
         print(f"  reading {args.clips} clips from the cached split …")
@@ -155,6 +164,7 @@ def run_evaluate(args: argparse.Namespace) -> None:
         device=device,
         timeout_s=args.timeout,
         streaming=args.streaming,
+        data_file=args.data_file,
         on_clip=progress,
     )
     s = outcome.score
@@ -166,10 +176,13 @@ def run_evaluate(args: argparse.Namespace) -> None:
     console.detail("CER", f"{s.cer * 100:.1f}%")
     console.detail("empty", f"{s.empty_hypotheses} blank hypotheses")
     if s.degenerate_hypotheses:
-        excl = s.cer_excluding_degenerate
         console.detail("degenerate", f"{s.degenerate_hypotheses} repetition collapses")
-        if excl is not None:
-            console.detail("CER excl.", f"{excl * 100:.1f}%   (collapses removed)")
+        excl_c = s.cer_excluding_degenerate
+        excl_w = s.wer_excluding_degenerate
+        if excl_w is not None:
+            console.detail("WER excl.", f"{excl_w * 100:.1f}%   (collapses removed)")
+        if excl_c is not None:
+            console.detail("CER excl.", f"{excl_c * 100:.1f}%   (collapses removed)")
     console.detail("elapsed", f"{outcome.seconds:.1f}s for {s.count} clips")
 
     if not args.no_save:
@@ -177,31 +190,52 @@ def run_evaluate(args: argparse.Namespace) -> None:
         console.detail("saved", str(path))
 
     console.rule("Done")
-    console.block(
-        f"Milestone 1 is complete when a single WER number exists. The plan expects "
-        f"80-100% on {args.lang} with a tiny model, so {s.wer * 100:.0f}% is the expected "
-        "outcome and not a problem to fix.",
-        "  ",
-    )
-    # Describe what this run actually shows. An earlier version asserted "CER
-    # below WER means the model heard the phonetics and misspelled them", which
-    # was true of the single clip it was written from and false of the first
-    # five-clip run, where one repetition collapse pushed corpus CER to 108%.
-    if s.cer > s.wer:
-        print()
+
+    # Read the run before describing it. An earlier version said "the plan expects
+    # 80-100%, so N% is the expected outcome" unconditionally, and then reported
+    # 436% as expected. It also claimed "CER below WER means an orthographic
+    # failure" when both figures were over 100% and the comparison meant nothing.
+    if s.collapse_rate >= 0.2:
         console.block(
-            "CER above WER here, which is the opposite of the usual pattern: at least one "
-            "hypothesis is far longer than its reference. Check the `degenerate` flags in "
-            "the saved JSON before reading the corpus CER as a quality signal.",
+            f"{s.degenerate_hypotheses} of {s.count} clips "
+            f"({s.collapse_rate * 100:.0f}%) collapsed into repetition, so the corpus WER "
+            "and CER above are NOT quality figures — they are dominated by hypotheses many "
+            "times longer than their references. The collapse rate is the result here.",
             "  ",
         )
-    elif s.cer < s.wer:
-        print()
+        excl_w = s.wer_excluding_degenerate
+        excl_c = s.cer_excluding_degenerate
+        if excl_w is not None and excl_c is not None:
+            print()
+            console.block(
+                f"On the {s.count - s.degenerate_hypotheses} clips it did not collapse on: "
+                f"WER {excl_w * 100:.1f}%, CER {excl_c * 100:.1f}%. A WER at or just past "
+                "100% is what the plan predicts for a 39M-parameter model, and CER far "
+                "below it is the orthographic signature — the model hearing the language "
+                "and spelling it in English.",
+                "  ",
+            )
+    elif s.wer > 1.5:
         console.block(
-            "CER below WER: the model is closer at character level than at word level, "
-            "which is what an orthographic rather than acoustic failure looks like.",
+            f"WER {s.wer * 100:.0f}% means insertions far exceed the reference length, not "
+            "that every word is wrong. Inspect the saved hypotheses before reading this as "
+            "a quality figure.",
             "  ",
         )
+    else:
+        console.block(
+            "Milestone 1 is complete when a single WER number exists. The plan expects "
+            f"80-100% on {args.lang} with a tiny model, so {s.wer * 100:.0f}% is the "
+            "expected outcome and not a problem to fix.",
+            "  ",
+        )
+        if s.cer < s.wer:
+            print()
+            console.block(
+                "CER below WER: closer at character level than at word level, which is what "
+                "an orthographic rather than acoustic failure looks like.",
+                "  ",
+            )
 
 
 def main(argv: list[str] | None = None) -> int:
