@@ -54,6 +54,30 @@ Its reference: `kwatancin 802.11n na aiki duk akan mita 2.4ghz da 5.0ghz`. The
 early support for §5.1's numeral-error thesis and for contribution 2 — on the
 first twenty-clip run, before any degradation was applied.
 
+### Igbo: resolved 2026-09-07 — it was never unavailable
+
+For weeks `--lang ig` produced nothing; one attempt ran over 25 minutes without a sample and had
+to be killed. That was recorded as *unresolved* rather than as a data-availability risk, because a
+later Hausa run failed identically and the network was a confound.
+
+The cause was `huggingface_hub`'s downloader, not the split. Fetching `ig_ng` over plain HTTP
+completed normally — **1,013 MB, 969 rows** — and the first Igbo evaluation ran straight after:
+
+| Igbo, `whisper-tiny`, 5 clips | |
+|---|---:|
+| WER | 226.5% |
+| CER | 149.7% |
+| repetition collapses | 1 of 5 |
+| WER excluding collapses | 102.5% |
+| CER excluding collapses | 58.1% |
+
+The same shape as Hausa: collapses inflating the corpus figures, and a CER far below WER once they
+are removed.
+
+**The lesson is worth keeping.** For weeks the obvious reading was that a language listed in FLEURS
+might be effectively unavailable — a scope risk for §2.1's four-language design. It was a client
+library bug. Do not record a tooling failure as a finding about the data.
+
 ### Caveats
 
 One model, one language, 20 clips, no normalisation, clean audio. The plan scopes
@@ -191,6 +215,27 @@ read speech.
 
 **Nigerian Pidgin remains entirely uncovered by anyone**, which makes §2.3's "include it if data
 permits" more valuable than when it was written.
+
+## Corpora
+
+```bash
+scripts/fetch-corpus.sh ha yo ig en
+```
+
+Downloads the FLEURS test splits into `data/` (gitignored). Idempotent — a complete file is left
+alone, a partial one continues from where it stopped.
+
+| Split | Size | Rows |
+|---|---:|---:|
+| `en_us` | 383 MB | 647 |
+| `ha_ng` | 734 MB | 621 |
+| `yo_ng` | 827 MB | 831 |
+| `ig_ng` | 1,013 MB | 969 |
+
+Plain HTTP with **append-only ranges** rather than `huggingface_hub`: that downloader stalled at
+0 KB/s while plain HTTP to the same URL sustained 1.2 MB/s, and its resume truncated a 674 MB
+partial back to 494 MB — a file of exactly the right size with the wrong contents. A failed range
+costs the chunk, never the banked bytes.
 
 ## Layout
 
