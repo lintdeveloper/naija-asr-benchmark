@@ -1,19 +1,19 @@
-"""Milestone 0 — the environment smoke test.
+"""Command line entry point.
 
-Proves the toolchain works end to end: resolve a FLEURS config, read samples,
-run one clip through whisper-tiny, print the hypothesis beside the reference.
+    naija-asr-benchmark smoke      Milestone 0 -- does the toolchain work at all
+    naija-asr-benchmark evaluate   Milestone 1 -- N clips, one model, one WER
 
-This is NOT a quality measurement. whisper-tiny on Hausa produces something
-close to nonsense, and that is the correct outcome — any Hausa-ish text beside a
-reference means the milestone is done. Do not tune anything here.
+Neither is a quality measurement. The plan expects 80-100% WER on Hausa with a
+tiny model; a good score would mean something is wrong, not right.
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 
-from . import __version__, asr, console, environment, fleurs
+from . import __version__, asr, console, environment, evaluate, fleurs
 from .errors import SmokeError
 
 SAMPLE_COUNT = 5
@@ -22,27 +22,54 @@ SAMPLE_COUNT = 5
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="naija-asr-benchmark",
-        description="Milestone 0 smoke test for Nigerian-language ASR evaluation.",
-    )
-    parser.add_argument(
-        "--lang",
-        default="ha",
-        choices=sorted(fleurs.LANGUAGE_CONFIGS),
-        help="language to probe (default: ha)",
-    )
-    parser.add_argument(
-        "--model",
-        default=asr.DEFAULT_MODEL,
-        help=f"ASR checkpoint (default: {asr.DEFAULT_MODEL})",
-    )
-    parser.add_argument(
-        "--timeout",
-        type=int,
-        default=fleurs.DEFAULT_FETCH_TIMEOUT_S,
-        metavar="SECONDS",
-        help="deadline for the dataset fetch (default: %(default)s)",
+        description="Nigerian-language ASR evaluation under real deployment conditions.",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    def shared(p: argparse.ArgumentParser) -> None:
+        p.add_argument(
+            "--lang",
+            default="ha",
+            choices=sorted(fleurs.LANGUAGE_CONFIGS),
+            help="language to evaluate (default: ha)",
+        )
+        p.add_argument(
+            "--model",
+            default=asr.DEFAULT_MODEL,
+            help=f"ASR checkpoint (default: {asr.DEFAULT_MODEL})",
+        )
+        p.add_argument(
+            "--timeout",
+            type=int,
+            default=fleurs.DEFAULT_FETCH_TIMEOUT_S,
+            metavar="SECONDS",
+            help="deadline for the dataset fetch (default: %(default)s)",
+        )
+
+    smoke = sub.add_parser("smoke", help="Milestone 0 — prove the toolchain works")
+    shared(smoke)
+
+    ev = sub.add_parser("evaluate", help="Milestone 1 — N clips, one model, one WER")
+    shared(ev)
+    ev.add_argument(
+        "--clips", type=int, default=20, metavar="N", help="clips to score (default: 20)"
+    )
+    ev.add_argument(
+        "--no-save", action="store_true", help="do not write a JSON result to results/"
+    )
+    ev.add_argument(
+        "--data-file",
+        type=Path,
+        metavar="PARQUET",
+        help="score from a parquet on disk — reproducible, and needs no network",
+    )
+    ev.add_argument(
+        "--streaming",
+        action="store_true",
+        help="stream instead of caching the split — faster to start, not reproducible",
+    )
+
     return parser.parse_args(argv)
 
 
@@ -87,7 +114,7 @@ def _report_transcription(result: asr.Transcription, model: str) -> None:
     console.block(result.hypothesis or "<empty>")
 
 
-def run(args: argparse.Namespace) -> None:
+def run_smoke(args: argparse.Namespace) -> None:
     device = _report_environment()
     config = _report_config(args.lang)
 
@@ -113,10 +140,111 @@ def run(args: argparse.Namespace) -> None:
     )
 
 
+def run_evaluate(args: argparse.Namespace) -> None:
+    device = _report_environment()
+    config = _report_config(args.lang)
+
+    console.rule(f"3. Scoring {args.clips} clips — {args.model} on {config}")
+    if args.data_file:
+        print(f"  reading {args.clips} clips from {args.data_file}")
+    elif args.streaming:
+        print(f"  streaming {args.clips} clips (not reproducible) …")
+    else:
+        print(f"  reading {args.clips} clips from the cached split …")
+        print("  a first run downloads it in full — several hundred MB per language")
+
+    def progress(done: int, total: int, result: asr.Transcription) -> None:
+        preview = (result.hypothesis or "<empty>").replace("\n", " ")[:44]
+        print(f"    [{done:>3}/{total}]  {preview}")
+
+    outcome = evaluate.run(
+        args.lang,
+        clips=args.clips,
+        model=args.model,
+        device=device,
+        timeout_s=args.timeout,
+        streaming=args.streaming,
+        data_file=args.data_file,
+        on_clip=progress,
+    )
+    s = outcome.score
+
+    console.rule("4. Result")
+    console.detail("clips", str(s.count))
+    console.detail("ref words", str(s.reference_words))
+    console.detail("WER", f"{s.wer * 100:.1f}%   (raw — no normalisation)")
+    console.detail("CER", f"{s.cer * 100:.1f}%")
+    console.detail("empty", f"{s.empty_hypotheses} blank hypotheses")
+    if s.degenerate_hypotheses:
+        console.detail("degenerate", f"{s.degenerate_hypotheses} repetition collapses")
+        excl_c = s.cer_excluding_degenerate
+        excl_w = s.wer_excluding_degenerate
+        if excl_w is not None:
+            console.detail("WER excl.", f"{excl_w * 100:.1f}%   (collapses removed)")
+        if excl_c is not None:
+            console.detail("CER excl.", f"{excl_c * 100:.1f}%   (collapses removed)")
+    console.detail("elapsed", f"{outcome.seconds:.1f}s for {s.count} clips")
+
+    if not args.no_save:
+        path = evaluate.persist(outcome)
+        console.detail("saved", str(path))
+
+    console.rule("Done")
+
+    # Read the run before describing it. An earlier version said "the plan expects
+    # 80-100%, so N% is the expected outcome" unconditionally, and then reported
+    # 436% as expected. It also claimed "CER below WER means an orthographic
+    # failure" when both figures were over 100% and the comparison meant nothing.
+    if s.collapse_rate >= 0.2:
+        console.block(
+            f"{s.degenerate_hypotheses} of {s.count} clips "
+            f"({s.collapse_rate * 100:.0f}%) collapsed into repetition, so the corpus WER "
+            "and CER above are NOT quality figures — they are dominated by hypotheses many "
+            "times longer than their references. The collapse rate is the result here.",
+            "  ",
+        )
+        excl_w = s.wer_excluding_degenerate
+        excl_c = s.cer_excluding_degenerate
+        if excl_w is not None and excl_c is not None:
+            print()
+            console.block(
+                f"On the {s.count - s.degenerate_hypotheses} clips it did not collapse on: "
+                f"WER {excl_w * 100:.1f}%, CER {excl_c * 100:.1f}%. A WER at or just past "
+                "100% is what the plan predicts for a 39M-parameter model, and CER far "
+                "below it is the orthographic signature — the model hearing the language "
+                "and spelling it in English.",
+                "  ",
+            )
+    elif s.wer > 1.5:
+        console.block(
+            f"WER {s.wer * 100:.0f}% means insertions far exceed the reference length, not "
+            "that every word is wrong. Inspect the saved hypotheses before reading this as "
+            "a quality figure.",
+            "  ",
+        )
+    else:
+        console.block(
+            "Milestone 1 is complete when a single WER number exists. The plan expects "
+            f"80-100% on {args.lang} with a tiny model, so {s.wer * 100:.0f}% is the "
+            "expected outcome and not a problem to fix.",
+            "  ",
+        )
+        if s.cer < s.wer:
+            print()
+            console.block(
+                "CER below WER: closer at character level than at word level, which is what "
+                "an orthographic rather than acoustic failure looks like.",
+                "  ",
+            )
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     try:
-        run(args)
+        if args.command == "evaluate":
+            run_evaluate(args)
+        else:
+            run_smoke(args)
     except SmokeError as exc:
         print(f"\n  ✗ {exc}", file=sys.stderr)
         if exc.hint:

@@ -20,35 +20,77 @@ class Transcription:
     low-resource audio — worth knowing when reading the hypothesis."""
 
 
-def transcribe(
-    utterance: Utterance,
-    language: str,
-    *,
-    model: str = DEFAULT_MODEL,
-    device: str = "cpu",
-) -> Transcription:
+def load(model: str = DEFAULT_MODEL, device: str = "cpu") -> Any:
+    """Load an ASR pipeline once.
+
+    Split out because Milestone 1 loops over clips: loading the checkpoint per
+    clip dominated the runtime and measured the loader rather than the model.
+    """
     from transformers import pipeline
 
     try:
-        asr = pipeline("automatic-speech-recognition", model=model, device=device)
+        return pipeline("automatic-speech-recognition", model=model, device=device)
     except Exception as exc:
         raise SmokeError(
             f"could not load {model}: {exc}",
             "Usually network or disk space; whisper-tiny is about 150MB.",
         ) from exc
 
-    payload = {
-        "array": utterance.audio.samples,
-        "sampling_rate": utterance.audio.sampling_rate,
-    }
 
-    # Forcing the language stops Whisper guessing. Not every checkpoint accepts
-    # every code, so fall back to auto-detect rather than failing the run.
+def transcribe(
+    utterance: Utterance,
+    language: str,
+    *,
+    model: str = DEFAULT_MODEL,
+    device: str = "cpu",
+    asr: Any | None = None,
+) -> Transcription:
+    if asr is None:
+        asr = load(model, device)
+
+    def payload() -> dict[str, Any]:
+        """A FRESH dict per attempt.
+
+        `AutomaticSpeechRecognitionPipeline.preprocess` does
+        `inputs.pop("array")` and `inputs.pop("sampling_rate")` on the dict it is
+        handed — it mutates the caller's object. Reusing one payload across the
+        forced attempt and the auto-detect fallback therefore hands the second
+        call an empty dict, which fails with a misleading complaint about a
+        missing "raw" key rather than about the real problem.
+
+        Latent through Milestone 0, which only ever ran one clip whose first
+        attempt succeeded. It surfaced on clip 14 of 20.
+        """
+        return {
+            "array": utterance.audio.samples,
+            "sampling_rate": utterance.audio.sampling_rate,
+        }
+
+    # `return_timestamps=True` is not cosmetic: Whisper's encoder takes 30s of
+    # audio, and anything longer switches to long-form generation, which REFUSES
+    # to run without timestamp prediction. FLEURS contains such clips — one
+    # appeared at index 13 of the Hausa test split — and without this the run
+    # dies partway with a message about mel features.
+    #
+    # Sequential long-form rather than chunking (`chunk_length_s`), because
+    # chunking splits mid-utterance and stitches the pieces, which introduces
+    # boundary errors into a number meant to measure the model. It is slower and
+    # it is the model's own handling.
+    # `return_timestamps` is a PIPELINE parameter, not a generate_kwargs key —
+    # `AutomaticSpeechRecognitionPipeline.__call__` takes it directly and
+    # validates it before the forward pass. Passing it inside generate_kwargs
+    # looks right, type-checks, and does nothing: the >30s clip still failed
+    # with "Please either pass return_timestamps=True", which is a confusing
+    # message to read when you believe you just did.
     try:
-        result = asr(payload, generate_kwargs={"language": language, "task": "transcribe"})
+        result = asr(
+            payload(),
+            return_timestamps=True,
+            generate_kwargs={"language": language, "task": "transcribe"},
+        )
         forced = True
     except (ValueError, KeyError):
-        result = asr(payload)
+        result = asr(payload(), return_timestamps=True)
         forced = False
 
     return Transcription(
