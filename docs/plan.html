@@ -185,8 +185,9 @@
   <span><b>Author:</b> Musa Musa</span>
   <span><b>Contact:</b> musabrillz@gmail.com</span>
   <span><b>Date:</b> 7 August 2026</span>
-  <span><b>Version:</b> 1.4</span>
-  <span><b>Status:</b> Plan — not yet started</span>
+  <span><b>Updated:</b> 24 September 2026</span>
+  <span><b>Version:</b> 1.5</span>
+  <span><b>Status:</b> Milestones 0 and 1 complete — Milestone 2 next</span>
 </div>
 
 <h2>Executive summary</h2>
@@ -408,6 +409,28 @@
 <p>In practice the interface is not a bespoke app. It is <strong>WhatsApp voice notes</strong> and <strong>IVR phone lines</strong> — the channels already in universal use. Any downstream product built on this benchmark should assume that pipeline: voice note in, transcript, intent, spoken reply out.</p>
 
 <h2>4. Delivery plan</h2>
+
+<div class="callout">
+<p><b>Where this stands — 24 September 2026.</b> Milestones 0 and 1 are complete and the
+harness is public at <code>github.com/lintdeveloper/naija-asr-benchmark</code> (MIT, CI green).
+Milestone 2 has not started.</p>
+
+<table>
+  <thead><tr><th class="num">#</th><th>Status</th><th>Outcome</th></tr></thead>
+  <tbody>
+    <tr><td class="num">0</td><td><b>Complete</b> — 27 Aug 2026</td><td>Toolchain works; FLEURS loads. PazaBench checked and it does <b>not</b> cover Hausa, Yorùbá or Igbo, so the clean-condition runs stay in scope and Milestone 3 does not shrink.</td></tr>
+    <tr><td class="num">1</td><td><b>Complete</b> — 7 Sep 2026</td><td>20 clips, <code>whisper-tiny</code>, Hausa: <b>WER 436.1%</b>, and the number is not the finding. The model <b>collapsed into repetition loops on 7 of 20 clips (35%)</b>, and insertions from those collapses dominate the corpus figure. Excluding them: WER 106.9%, CER 46.6% — at the edge of the 80–100% this milestone predicted. First Igbo run followed: WER 226.5%, 1 of 5 collapses, 102.5% excluding.</td></tr>
+    <tr><td class="num">2</td><td>Not started</td><td>Four corpora are already fetched and verified locally (en_us, ha_ng, yo_ng, ig_ng — 2.9 GB), so the dataset half of this milestone is unblocked. Outstanding non-code dependencies: choose the noise corpus, accept Common Voice terms, and begin recruiting native-speaker reviewers (§8 — blocking for publication).</td></tr>
+  </tbody>
+</table>
+
+<p>Two corrections the work forced on this plan, recorded because both would otherwise be
+repeated. <b>Corpus WER must be reported pooled, with the collapse rate beside it</b> — a single
+averaged figure above 100% reads as "every word wrong" and hides the actual failure mode.
+And <b>Igbo was never unavailable</b>: repeated fetch failures were <code>huggingface_hub</code>
+stalling and truncating a partial download, not missing data. A plain HTTP range fetch
+completed it. Do not record a tooling failure as a finding about the data.</p>
+</div>
 
 <table>
   <thead>
@@ -632,6 +655,7 @@
   </thead>
   <tbody>
     <tr><td>FLEURS config names</td><td><b>Resolved</b> — verified 2026-08-07</td><td><code>ha_ng</code>, <code>yo_ng</code>, <code>ig_ng</code> and <code>en_us</code> all exist (103 configs total); <code>ha_ng</code> has train/validation/test. No longer a risk.</td></tr>
+    <tr><td>Corpus download reliability</td><td><b>Resolved</b> — verified 2026-09-07</td><td>All four FLEURS test splits are fetched and parse locally (en_us 383 MB / 647 rows, ha_ng 734 MB / 621, yo_ng 827 MB / 831, ig_ng 1,013 MB / 969). Igbo appeared unobtainable for weeks; the cause was <code>huggingface_hub</code> stalling at 0 KB/s and resuming into a right-sized <b>corrupt</b> file, not gating or missing data. A plain HTTP range fetch sustained 1.2 MB/s. Corruption was caught by parsing the file, not by hashing it.</td></tr>
     <tr><td>Common Voice gating</td><td>Likely gated</td><td>Create HuggingFace account and accept terms before Milestone 2</td></tr>
     <tr><td>Commercial API language support</td><td>Unknown</td><td>Check vendor language lists early; absence is a recordable finding</td></tr>
     <tr><td>Orthographic divergence between datasets</td><td>Likely</td><td>Not noise to be cleaned — report it as a finding about Nigerian text data</td></tr>
@@ -662,6 +686,7 @@
 <table>
   <thead><tr><th>Version</th><th>Change</th></tr></thead>
   <tbody>
+    <tr><td>1.5</td><td><b>Status pass after Milestones 0 and 1.</b> The header still read "Plan — not yet started" three weeks after the harness was public and two milestones were done. Added a progress table to §4 with the measured outcomes, the PazaBench result (no Nigerian-language coverage, so Milestone 3 does not shrink), and the two corrections the work forced: pooled reporting with the collapse rate beside it, and the Igbo fetch failure being <code>huggingface_hub</code> rather than the data. Recorded in §8 that FLEURS Igbo is confirmed obtainable.</td></tr>
     <tr><td>1.0</td><td>Initial plan — Hausa-only, two datasets, clean speech</td></tr>
     <tr><td>1.1</td><td>Extended to four languages; added acoustic degradation conditions and an English control; added numeral error rate and Milestone 5; corrected effort from five to seven weekends and cost from USD 20 to 50–100</td></tr>
     <tr><td>1.4</td><td><b>Consistency pass.</b> Seven acoustic conditions, not six (exec summary contradicted §5.4 and Milestone 3). §1.5 said "three things" over a four-item list. Withdrew the claim that adding languages costs "close to zero" — it quadruples GPU time and is the main driver of the budget. Removed "hosted leaderboard" from §9's extensions, where it contradicted §1.4's instruction not to rebuild PazaBench. Clarified that the 136-run figure assumes a four-model core grid, and that the 24 English-control runs cover the six FLEURS-derived conditions only. Split the sector table into prose-WER and entity-accuracy columns and marked both as engineering judgement rather than measurement.</td></tr>
