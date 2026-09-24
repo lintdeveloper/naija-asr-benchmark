@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<title>Naija ASR Benchmark Review</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground:      #f5f7f6;
+    --surface:     #ffffff;
+    --surface-sunk:#eceff0;
+    --ink:         #11201d;
+    --ink-soft:    #3d4f4b;
+    --ink-mute:    #6b7c78;
+    --rule:        #d5dedb;
+    --rule-soft:   #e4eae8;
+    --accent:      #0e6355;
+    --accent-soft: #e2efeb;
+    --ok:          #1d6b45;
+    --warn:        #9a6514;
+    --warn-soft:   #f6ecd9;
+    --crit:        #93342a;
+    --crit-soft:   #f8e6e3;
+    --measure: 68ch;
+  }
+  :root:not([data-theme="light"]) {
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #0d1614;
+      --surface:     #14201e;
+      --surface-sunk:#101a18;
+      --ink:         #e6edea;
+      --ink-soft:    #b3c2be;
+      --ink-mute:    #859491;
+      --rule:        #273835;
+      --rule-soft:   #1d2b28;
+      --accent:      #5fc9b1;
+      --accent-soft: #14312b;
+      --ok:          #5cc08d;
+      --warn:        #d7a04a;
+      --warn-soft:   #35290f;
+      --crit:        #e08076;
+      --crit-soft:   #3a1d19;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:      #0d1614;
+    --surface:     #14201e;
+    --surface-sunk:#101a18;
+    --ink:         #e6edea;
+    --ink-soft:    #b3c2be;
+    --ink-mute:    #859491;
+    --rule:        #273835;
+    --rule-soft:   #1d2b28;
+    --accent:      #5fc9b1;
+    --accent-soft: #14312b;
+    --ok:          #5cc08d;
+    --warn:        #d7a04a;
+    --warn-soft:   #35290f;
+    --crit:        #e08076;
+    --crit-soft:   #3a1d19;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    margin: 0;
+    padding-inline: 20px;
+    padding-block: 0 72px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: var(--measure); margin-inline: auto; }
+  .wide { max-width: 88ch; margin-inline: auto; }
+
+  /* ── masthead ─────────────────────────────────────────────── */
+  header.masthead {
+    border-bottom: 2px solid var(--ink);
+    padding-block: 56px 20px;
+    margin-bottom: 36px;
+  }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+  h1 {
+    font-family: Spectral, Georgia, "Times New Roman", serif;
+    font-weight: 700;
+    font-size: clamp(30px, 6vw, 44px);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    margin: 0 0 14px;
+    text-wrap: balance;
+  }
+  .standfirst {
+    font-family: Spectral, Georgia, serif;
+    font-size: 18px;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    margin: 0 0 24px;
+    text-wrap: pretty;
+  }
+  dl.colophon {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px 24px;
+    margin: 0;
+    font-size: 13px;
+  }
+  dl.colophon dt {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    margin-bottom: 2px;
+  }
+  dl.colophon dd { margin: 0; color: var(--ink-soft); }
+
+  /* ── sections ─────────────────────────────────────────────── */
+  section { margin-block: 44px; }
+  h2 {
+    font-family: Spectral, Georgia, serif;
+    font-weight: 600;
+    font-size: 25px;
+    letter-spacing: -0.01em;
+    margin: 0 0 6px;
+    text-wrap: balance;
+  }
+  h2 .sec-num {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent);
+    margin-right: 10px;
+    vertical-align: 2px;
+  }
+  .deck {
+    color: var(--ink-mute);
+    font-size: 14.5px;
+    margin: 0 0 22px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--rule);
+  }
+  h3 {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    margin: 28px 0 8px;
+  }
+  p { margin: 0 0 14px; text-wrap: pretty; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  strong { font-weight: 600; }
+  code, .mono {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.875em;
+  }
+  code { background: var(--surface-sunk); padding: 1px 5px; border-radius: 3px; }
+
+  /* ── verdict strip ────────────────────────────────────────── */
+  .verdict {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    padding: 20px 22px;
+    margin-bottom: 8px;
+  }
+  .verdict p:last-child { margin-bottom: 0; }
+
+  /* ── gate table (what was run) ────────────────────────────── */
+  .gates {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    margin: 20px 0;
+  }
+  .gate { background: var(--surface); padding: 14px 16px; }
+  .gate .g-name {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--ink-mute);
+    display: block;
+    margin-bottom: 5px;
+  }
+  .gate .g-val {
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--ok);
+    font-variant-numeric: tabular-nums;
+  }
+  .gate .g-sub { display: block; font-size: 12px; color: var(--ink-mute); margin-top: 2px; }
+
+  /* ── tables ───────────────────────────────────────────────── */
+  .scroll { overflow-x: auto; margin: 20px 0; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  caption {
+    caption-side: top;
+    text-align: left;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    padding-bottom: 8px;
+  }
+  th, td {
+    text-align: left;
+    padding: 9px 14px 9px 0;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+  }
+  thead th {
+    font-size: 11px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    font-weight: 600;
+    border-bottom: 1px solid var(--rule);
+  }
+  td.num, th.num { text-align: right; padding-right: 0; }
+  tbody tr:last-child td { border-bottom: none; }
+  .figure { font-weight: 600; }
+  .dim { color: var(--ink-mute); }
+
+  /* ── findings ─────────────────────────────────────────────── */
+  .finding {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    padding: 22px 24px;
+    margin-bottom: 14px;
+  }
+  .f-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+  }
+  .f-num {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .f-title {
+    font-family: Spectral, Georgia, serif;
+    font-weight: 600;
+    font-size: 19px;
+    margin: 0;
+    flex: 1 1 260px;
+    text-wrap: balance;
+  }
+  .sev {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 2px;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+  .sev-high { background: var(--crit-soft); color: var(--crit); }
+  .sev-med  { background: var(--warn-soft); color: var(--warn); }
+  .sev-low  { background: var(--surface-sunk); color: var(--ink-mute); }
+  .finding p { font-size: 15px; }
+  .finding p:last-child { margin-bottom: 0; }
+  .evidence {
+    background: var(--surface-sunk);
+    border-left: 2px solid var(--rule);
+    padding: 10px 14px;
+    margin: 14px 0;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    overflow-x: auto;
+    color: var(--ink-soft);
+  }
+  .fix {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--rule-soft);
+    font-size: 14.5px;
+  }
+  .fix b {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    display: block;
+    margin-bottom: 4px;
+    font-weight: 500;
+  }
+
+  /* ── coverage grid ────────────────────────────────────────── */
+  .cov td.state { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; }
+  .yes  { color: var(--ok); font-weight: 600; }
+  .no   { color: var(--crit); font-weight: 600; }
+  .warn { color: var(--warn); font-weight: 600; }
+
+  /* ── credit list ──────────────────────────────────────────── */
+  ul.credit { list-style: none; padding: 0; margin: 0; }
+  ul.credit li {
+    padding: 14px 0 14px 0;
+    border-bottom: 1px solid var(--rule-soft);
+    font-size: 15px;
+  }
+  ul.credit li:last-child { border-bottom: none; }
+  ul.credit b { display: block; margin-bottom: 3px; }
+
+  footer {
+    margin-top: 56px;
+    padding-top: 18px;
+    border-top: 1px solid var(--rule);
+    font-size: 13px;
+    color: var(--ink-mute);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<header class="masthead">
+  <div class="wide">
+    <p class="eyebrow">Code &amp; methodology review</p>
+    <h1>naija-asr-benchmark at Milestone&nbsp;1</h1>
+    <p class="standfirst">The harness is in better shape than the evidence it produces. Every quality gate passes and the scoring module is methodologically careful — but the control arm has never been run, and no published figure can currently be reproduced by a reader.</p>
+    <dl class="colophon">
+      <div><dt>Repository</dt><dd>lintdeveloper/naija-asr-benchmark</dd></div>
+      <div><dt>Reviewed at</dt><dd class="mono">6c4d336 · main</dd></div>
+      <div><dt>Date</dt><dd>24 September 2026</dd></div>
+      <div><dt>Scope</dt><dd>1,613 lines, src + tests, plan v1.5</dd></div>
+    </dl>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section>
+  <div class="verdict">
+    <p><strong>Summary.</strong> Milestones 0 and 1 are genuinely complete and the engineering is above the standard the plan asks for at this stage. The six findings below are not code defects — the code is clean — they are gaps between what the project <em>claims</em> and what a third party could <em>check</em>. Two of them should close before Milestone 2 starts, because Milestone 2 multiplies every run by seven acoustic conditions and will make both far more expensive to fix.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="sec-num">01</span>Verification</h2>
+  <p class="deck">Run locally against the working tree, not read off a CI badge.</p>
+
+  <div class="gates">
+    <div class="gate"><span class="g-name">ruff check</span><span class="g-val">pass</span><span class="g-sub">10 rule families</span></div>
+    <div class="gate"><span class="g-name">ruff format</span><span class="g-val">pass</span><span class="g-sub">17 files</span></div>
+    <div class="gate"><span class="g-name">mypy</span><span class="g-val">pass</span><span class="g-sub">16 source files</span></div>
+    <div class="gate"><span class="g-name">pytest</span><span class="g-val">49 / 49</span><span class="g-sub">41 test functions</span></div>
+    <div class="gate"><span class="g-name">CI on main</span><span class="g-val">green</span><span class="g-sub">latest 24 Sep</span></div>
+  </div>
+
+  <p>The CI design is worth singling out. It pins to Python&nbsp;3.11 — the <code>requires-python</code> floor — rather than “latest”, on the correct reasoning that a newer interpreter passing says nothing about the version people will actually install. Every test is network-free by construction, with the fetch path exercised through synthetic fixtures, so a flaky CDN cannot produce a red build.</p>
+</section>
+
+<section>
+  <h2><span class="sec-num">02</span>What the numbers actually say</h2>
+  <p class="deck">Read from the result JSON, not from the README.</p>
+
+  <div class="scroll">
+    <table>
+      <caption>whisper-tiny, raw text, no normalisation</caption>
+      <thead>
+        <tr>
+          <th>Language</th>
+          <th class="num">Clips</th>
+          <th class="num">Ref words</th>
+          <th class="num">WER</th>
+          <th class="num">CER</th>
+          <th class="num">Collapses</th>
+          <th class="num">WER excl.</th>
+          <th class="num">CER excl.</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Hausa <span class="dim">ha_ng</span></td>
+          <td class="num">20</td><td class="num">460</td>
+          <td class="num figure">436.1%</td><td class="num">316.3%</td>
+          <td class="num">7 <span class="dim">(35%)</span></td>
+          <td class="num">106.9%</td><td class="num">46.6%</td>
+        </tr>
+        <tr>
+          <td>Igbo <span class="dim">ig_ng</span></td>
+          <td class="num">5</td><td class="num">102</td>
+          <td class="num figure">226.5%</td><td class="num">149.7%</td>
+          <td class="num">1 <span class="dim">(20%)</span></td>
+          <td class="num">102.5%</td><td class="num">58.1%</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>The interpretation in the repository is correct and worth restating, because it is the project’s first real result: a corpus WER of 436% does not mean every word is wrong. It means <strong>insertions dwarf the references</strong>. The model collapsed into repetition loops on 7 of 20 Hausa clips, and those seven carry the corpus figure. Excluding them puts Hausa at 106.9% — precisely the 80–100% band the plan predicted for this milestone.</p>
+
+  <p><strong>The collapse rate is the finding, not the WER.</strong> That framing is right, and the code treats it as first-class rather than as a footnote: <code>collapse_rate</code> is a property on the score object, and the excluded figures are reported <em>alongside</em> the full ones, never instead of them.</p>
+</section>
+
+<section>
+  <h2><span class="sec-num">03</span>Findings</h2>
+  <p class="deck">Ranked by what each one costs if it is still true at publication.</p>
+
+  <article class="finding">
+    <div class="f-head">
+      <span class="f-num">1</span>
+      <h3 class="f-title">The English control arm has never been run</h3>
+      <span class="sev sev-high">blocking</span>
+    </div>
+    <p>The whole argument of the plan is comparative: Nigerian-language ASR degrades <em>more</em> than English under the same conditions. That claim needs an English number measured by the same harness. There isn’t one. Yorùbá has never been run either, despite being one of the two tone-orthography arms in contribution&nbsp;1.</p>
+    <div class="evidence">results/    ha-whisper-tiny-*.json   ×4
+            ig-whisper-tiny-*.json   ×1
+            (no yo, no en)
+
+data/       en_us-test.parquet   383 MB   ← fetched, never used
+            yo_ng-test.parquet   827 MB   ← fetched, never used</div>
+    <p>Both corpora are already on disk and verified. This is a few hours of laptop time, not a blocked dependency.</p>
+    <div class="fix"><b>Recommendation</b>Run <code>en</code> and <code>yo</code> at 20 clips before starting Milestone 2. The English figure is the denominator for every later claim; producing it after the degradation grid invites the suspicion that the baseline was chosen to fit.</div>
+  </article>
+
+  <article class="finding">
+    <div class="f-head">
+      <span class="f-num">2</span>
+      <h3 class="f-title">No published figure can be checked by a reader</h3>
+      <span class="sev sev-high">blocking</span>
+    </div>
+    <p>The README and now <code>plan.pdf</code> both state WER 436.1% and a 35% collapse rate. <code>results/</code> is in <code>.gitignore</code>, so the JSON those numbers come from is not in the repository. A reader who wants to verify them has to re-download 734&nbsp;MB and re-run inference — and would get a different number if anything in the stack moved.</p>
+    <div class="evidence">.gitignore:5   results/
+
+ha-whisper-tiny-20260907T145421+0000.json   18 KB</div>
+    <p>For a project whose stated deliverable is a benchmark “reproducible by a stranger”, the evidence for its headline claim being untracked is the sharpest inconsistency in the repository. The files are 18&nbsp;KB.</p>
+    <div class="fix"><b>Recommendation</b>Commit the result JSONs, or attach them to a tagged release. Keep <code>results/</code> ignored for scratch runs, but a figure that appears in the README should have its artefact in the tree.</div>
+  </article>
+
+  <article class="finding">
+    <div class="f-head">
+      <span class="f-num">3</span>
+      <h3 class="f-title">Runs don’t record the stack that produced them</h3>
+      <span class="sev sev-med">before publication</span>
+    </div>
+    <p><code>persist()</code> writes <code>harness_version</code>, the model name, the normalisation policy and the long-form strategy — thoughtful choices, all of them. It does not write the <code>transformers</code> version, the <code>torch</code> version, or the model revision SHA.</p>
+    <p>An ASR figure is a property of a model <em>and</em> the inference stack decoding it. <code>whisper-tiny</code> is a moving pointer on the Hub, and <code>transformers</code> is pinned only as <code>&gt;=4.40,&lt;5</code>. The repetition-collapse behaviour that is now the headline finding is exactly the kind of thing a decoding change alters. Without those three fields, the 436.1% cannot be re-derived later even by its author.</p>
+    <div class="fix"><b>Recommendation</b>Add <code>transformers</code>, <code>torch</code> and the resolved model revision to the persisted JSON. Three lines, and it is the difference between a measurement and an anecdote.</div>
+  </article>
+
+  <article class="finding">
+    <div class="f-head">
+      <span class="f-num">4</span>
+      <h3 class="f-title">The Igbo figure rests on five clips</h3>
+      <span class="sev sev-med">before publication</span>
+    </div>
+    <p>Igbo was run at 5 clips and 102 reference words; Hausa at 20 clips and 460. The two now sit side by side in the README and in the plan’s progress table, formatted identically, with nothing in the presentation signalling that one has a quarter of the evidence behind it.</p>
+    <p>The Igbo run was a triumph — first successful fetch after weeks of failure — and the instinct to record it immediately was right. But 5 clips with 1 collapse gives a collapse rate of 20% with an interval wide enough to contain almost anything.</p>
+    <div class="fix"><b>Recommendation</b>Re-run Igbo at 20 clips to match, or mark the sample size wherever the figure appears. The corpus is already local, so this is minutes.</div>
+  </article>
+
+  <article class="finding">
+    <div class="f-head">
+      <span class="f-num">5</span>
+      <h3 class="f-title">The collapse threshold has no sensitivity check</h3>
+      <span class="sev sev-med">before publication</span>
+    </div>
+    <p><code>Utterance.degenerate</code> defines a collapse as a hypothesis more than <strong>3×</strong> its reference length. The docstring is honest that this is a generous heuristic and explains the clip that motivated it. But the 35% collapse rate — now the project’s headline result — is entirely a function of that constant.</p>
+    <div class="evidence">scoring.py   return len(self.hypothesis) &gt; 3 * max(1, len(self.reference))</div>
+    <p>A reviewer will ask what happens at 2× and at 4×. If the answer is “35% either way”, that is a strong result and cheap to state. If the rate swings, the threshold needs a defence rather than a comment.</p>
+    <div class="fix"><b>Recommendation</b>Report the collapse rate at 2×, 3× and 4× once, from the existing JSON. No re-inference required — the hypotheses are already stored.</div>
+  </article>
+
+  <article class="finding">
+    <div class="f-head">
+      <span class="f-num">6</span>
+      <h3 class="f-title">The plan PDF has no build recipe</h3>
+      <span class="sev sev-low">housekeeping</span>
+    </div>
+    <p><code>docs/plan.pdf</code> is rendered from <code>docs/plan.html</code> with a headless-Chrome invocation recorded nowhere in the repository. The next regeneration is someone rediscovering the flags, and a PDF that drifts from its HTML source is worse than having only one of them.</p>
+    <div class="fix"><b>Recommendation</b>A three-line <code>make plan</code> target, or a comment at the top of <code>plan.html</code>.</div>
+  </article>
+</section>
+
+<section>
+  <h2><span class="sec-num">04</span>Coverage</h2>
+  <p class="deck">What exists on disk against what has been measured.</p>
+  <div class="scroll">
+    <table class="cov">
+      <thead>
+        <tr><th>Language</th><th>Role in the design</th><th>Corpus</th><th>Evaluated</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Hausa</td><td>Lead language; tone unwritten</td><td class="state"><span class="yes">734 MB · 621 rows</span></td><td class="state"><span class="yes">yes · 20 clips</span></td></tr>
+        <tr><td>Igbo</td><td>Tone-orthography arm</td><td class="state"><span class="yes">1,013 MB · 969 rows</span></td><td class="state"><span class="warn">partial · 5 clips</span></td></tr>
+        <tr><td>Yorùbá</td><td>Tone-orthography arm</td><td class="state"><span class="yes">827 MB · 831 rows</span></td><td class="state"><span class="no">never run</span></td></tr>
+        <tr><td>English</td><td><strong>Control arm</strong></td><td class="state"><span class="yes">383 MB · 647 rows</span></td><td class="state"><span class="no">never run</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>All four corpora are local and parse — 2.9&nbsp;GB, fetched by <code>scripts/fetch-corpus.sh</code> with an append-only range loop against a pinned revision. The data half of Milestone 2 is genuinely unblocked; the measurement half is half-done.</p>
+</section>
+
+<section>
+  <h2><span class="sec-num">05</span>What is done well</h2>
+  <p class="deck">Stated because a review that lists only deficits misrepresents the work.</p>
+  <ul class="credit">
+    <li><b>Pooled, not averaged</b>The corpus figure comes from one <code>jiwer</code> call over every pair. A per-utterance mean would weight a three-word clip like a thirty-word one, and short utterances are exactly where a silent model scores worst. The docstring says so.</li>
+    <li><b>Excluded figures never replace the full ones</b><code>cer_excluding_degenerate</code> returns <code>None</code> when nothing was excluded, so the two can never be confused. The comment — “dropping inconvenient utterances silently is how a benchmark becomes an opinion” — is the right instinct, enforced in code rather than asserted in prose.</li>
+    <li><b>Comments record the failure, not the behaviour</b>Three of the hardest bugs are documented where they bit: the pipeline mutating its input dict (surfaced on clip 14 of 20), <code>return_timestamps</code> being a pipeline parameter rather than a <code>generate_kwargs</code> key, and the read-before-join ordering that stops a multi-megabyte payload deadlocking on the pipe buffer.</li>
+    <li><b>The fetch deadline is enforced from outside</b>A HuggingFace fetch can block below the level at which Python delivers signals — a <code>signal.alarm(90)</code> probe ran past 330 seconds. The child-process design is the correct response, and the docstring records the measurement that forced it.</li>
+    <li><b>Empty references are dropped, not scored</b>WER divides by reference length, so a blank reference is undefined rather than perfect. Handled explicitly, with an actionable error when <em>every</em> reference is blank pointing at a schema change.</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="sec-num">06</span>Before Milestone 2</h2>
+  <p class="deck">Ordered by lead time, longest first.</p>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Item</th><th>Why now</th><th class="num">Lead time</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Recruit native-speaker reviewers</strong></td><td>§8 calls this blocking for publication. Orthographic decisions must be reviewed before the normaliser is trusted — and if those calls are wrong, every normalised figure is wrong.</td><td class="num">weeks</td></tr>
+        <tr><td><strong>Choose the noise corpus</strong></td><td>Defines what C3 means. §8 requires realistic market, street or babble noise, not white noise, with the source documented. Shapes the whole degradation pipeline.</td><td class="num">a decision</td></tr>
+        <tr><td><strong>Accept Common Voice terms</strong></td><td>§8 flags it as likely gated. Five minutes now; a blocked milestone later.</td><td class="num">minutes</td></tr>
+        <tr><td><strong>Run English and Yorùbá</strong></td><td>Finding&nbsp;1. The baseline should predate the grid.</td><td class="num">hours</td></tr>
+        <tr><td><strong>Commit the results, record the stack</strong></td><td>Findings&nbsp;2 and&nbsp;3. Seven conditions × four languages multiplies both problems.</td><td class="num">an hour</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Only the degradation pipeline itself is pure code, and it is the one piece with no external dependency — <code>librosa</code> and <code>soundfile</code> are already in the lockfile. It is also where the most interesting open question sits: <strong>does the 35% collapse rate rise under narrowband and noise?</strong> If it does, the failure mode found on clean audio becomes a considerably stronger result.</p>
+</section>
+
+<footer class="wide">
+  Review of <span class="mono">lintdeveloper/naija-asr-benchmark</span> at <span class="mono">6c4d336</span>, 24 September 2026. Gates re-run locally against the working tree; all figures read from the result JSON in <span class="mono">results/</span> rather than from documentation.
+</footer>
+
+</div>
+
+<style>
+  @page { size: A4; margin: 15mm 14mm 16mm; }
+
+  @media print {
+    :root { color-scheme: light; }
+    body {
+      background: #ffffff;
+      font-size: 10.5pt;
+      padding-inline: 0;
+      padding-block: 0;
+    }
+    .wrap, .wide { max-width: none; }
+
+    /* Five gates, one row. auto-fit broke to 4+1 and the grid's own background filled
+       the four empty tracks with a grey slab. */
+    .gates { grid-template-columns: repeat(5, 1fr); }
+    .gate { padding: 10px 12px; }
+
+    /* Both tables are short. Letting one break leaves its header stranded at the foot
+       of a page with every row on the next one. */
+    .scroll { break-inside: avoid; }
+
+    /* A finding split across a page break separates its claim from its evidence, which
+       is the only thing that makes it checkable. */
+    .finding, .gate, ul.credit li, .verdict { break-inside: avoid; }
+    tr, caption + table thead { break-inside: avoid; }
+    h2, h3, caption { break-after: avoid; }
+
+    header.masthead { padding-block: 0 14px; margin-bottom: 24px; }
+    h1 { font-size: 25pt; }
+    .standfirst { font-size: 11.5pt; }
+    section { margin-block: 24px; }
+    h2 { font-size: 15pt; }
+    .f-title { font-size: 13pt; }
+
+    /* Screen surfaces read as muddy boxes on paper; keep the structure, drop the fill. */
+    .finding, .verdict, .gate { background: #ffffff; }
+    .gates { background: #d5dedb; }
+    .evidence { background: #f4f6f5; }
+
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+
+</body>
+</html>
